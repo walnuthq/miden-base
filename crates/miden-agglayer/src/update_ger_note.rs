@@ -17,14 +17,13 @@ use miden_protocol::note::{
     Note,
     NoteAssets,
     NoteAttachment,
-    NoteExecutionHint,
     NoteMetadata,
     NoteRecipient,
     NoteScript,
     NoteStorage,
     NoteType,
 };
-use miden_standards::note::NetworkAccountTarget;
+use miden_standards::note::{NetworkAccountTarget, NoteExecutionHint};
 use miden_utils_sync::LazyLock;
 
 use crate::ExitRoot;
