@@ -3,6 +3,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use miden_core::{Felt, FieldElement, Word};
+use miden_core_lib::handlers::bytes_to_packed_u32_felts;
 use miden_protocol::account::AccountId;
 use miden_protocol::crypto::SequentialCommit;
 use miden_protocol::crypto::rand::FeltRng;
@@ -18,18 +19,17 @@ use miden_protocol::note::{
 };
 use miden_standards::note::{NetworkAccountTarget, NoteExecutionHint};
 
-use crate::utils::bytes32_to_felts;
 use crate::{EthAddressFormat, EthAmount, claim_script};
 
 // CLAIM NOTE STRUCTURES
 // ================================================================================================
 
-/// SMT node representation (32-byte hash)
+/// Keccak256 output representation (32-byte hash)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SmtNode([u8; 32]);
+pub struct Keccak256Output([u8; 32]);
 
-impl SmtNode {
-    /// Creates a new SMT node from a 32-byte array
+impl Keccak256Output {
+    /// Creates a new Keccak256 output from a 32-byte array
     pub fn new(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
@@ -39,44 +39,24 @@ impl SmtNode {
         &self.0
     }
 
-    /// Converts the SMT node to 8 Felt elements (32-byte value as 8 u32 values in big-endian)
-    pub fn to_elements(&self) -> [Felt; 8] {
-        bytes32_to_felts(&self.0)
+    /// Converts the Keccak256 output to 8 Felt elements (32-byte value as 8 u32 values in
+    /// little-endian)
+    pub fn to_elements(&self) -> Vec<Felt> {
+        bytes_to_packed_u32_felts(&self.0)
     }
 }
 
-impl From<[u8; 32]> for SmtNode {
+impl From<[u8; 32]> for Keccak256Output {
     fn from(bytes: [u8; 32]) -> Self {
         Self::new(bytes)
     }
 }
 
-/// Exit root representation (32-byte hash)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ExitRoot([u8; 32]);
+/// SMT node representation (32-byte Keccak256 hash)
+pub type SmtNode = Keccak256Output;
 
-impl ExitRoot {
-    /// Creates a new exit root from a 32-byte array
-    pub fn new(bytes: [u8; 32]) -> Self {
-        Self(bytes)
-    }
-
-    /// Returns the inner 32-byte array
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-
-    /// Converts the exit root to 8 Felt elements
-    pub fn to_elements(&self) -> [Felt; 8] {
-        bytes32_to_felts(&self.0)
-    }
-}
-
-impl From<[u8; 32]> for ExitRoot {
-    fn from(bytes: [u8; 32]) -> Self {
-        Self::new(bytes)
-    }
-}
+/// Exit root representation (32-byte Keccak256 hash)
+pub type ExitRoot = Keccak256Output;
 
 /// Proof data for CLAIM note creation.
 /// Contains SMT proofs and root hashes using typed representations.
