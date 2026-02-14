@@ -19,7 +19,7 @@ use miden_protocol::note::{
 };
 use miden_standards::note::{NetworkAccountTarget, NoteExecutionHint};
 
-use crate::{EthAddressFormat, EthAmount, claim_script};
+use crate::{EthAddressFormat, EthAmount, MetadataHash, claim_script};
 
 // CLAIM NOTE STRUCTURES
 // ================================================================================================
@@ -121,8 +121,8 @@ pub struct LeafData {
     pub destination_address: EthAddressFormat,
     /// Amount of tokens (uint256)
     pub amount: EthAmount,
-    /// ABI encoded metadata (fixed size of 8 u32 values)
-    pub metadata: [u32; 8],
+    /// Metadata hash (32 bytes)
+    pub metadata_hash: MetadataHash,
 }
 
 impl SequentialCommit for LeafData {
@@ -137,14 +137,16 @@ impl SequentialCommit for LeafData {
         // for a `CLAIM` note, leafType is always 0 (transfer Ether / ERC20 tokens)
         elements.push(Felt::ZERO);
 
-        // Origin network
-        elements.push(Felt::new(self.origin_network as u64));
+        // Origin network (encode as little-endian bytes for keccak)
+        let origin_network = u32::from_le_bytes(self.origin_network.to_be_bytes());
+        elements.push(Felt::from(origin_network));
 
         // Origin token address (5 u32 felts)
         elements.extend(self.origin_token_address.to_elements());
 
-        // Destination network
-        elements.push(Felt::new(self.destination_network as u64));
+        // Destination network (encode as little-endian bytes for keccak)
+        let destination_network = u32::from_le_bytes(self.destination_network.to_be_bytes());
+        elements.push(Felt::from(destination_network));
 
         // Destination address (5 u32 felts)
         elements.extend(self.destination_address.to_elements());
@@ -152,8 +154,8 @@ impl SequentialCommit for LeafData {
         // Amount (uint256 as 8 u32 felts)
         elements.extend(self.amount.to_elements());
 
-        // Metadata (8 u32 felts)
-        elements.extend(self.metadata.iter().map(|&v| Felt::new(v as u64)));
+        // Metadata hash (8 u32 felts)
+        elements.extend(self.metadata_hash.to_elements());
 
         // Padding
         elements.extend(vec![Felt::ZERO; 3]);

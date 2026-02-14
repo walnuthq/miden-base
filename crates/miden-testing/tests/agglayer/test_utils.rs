@@ -68,7 +68,7 @@ pub async fn execute_program_with_default_host(
 /// - origin_network: u32
 /// - origin_token_address: [u8; 20]
 /// - destination_network: u32
-/// - metadata: [u32; 8]
+/// - metadata: [u8; 32]
 pub type ClaimNoteTestInputs = (
     Vec<[u8; 32]>,
     Vec<[u8; 32]>,
@@ -78,7 +78,7 @@ pub type ClaimNoteTestInputs = (
     u32,
     [u8; 20],
     u32,
-    [u32; 8],
+    [u8; 32],
 );
 
 /// Returns dummy test inputs for creating CLAIM notes with native types.
@@ -96,9 +96,9 @@ pub fn claim_note_test_inputs() -> ClaimNoteTestInputs {
     let global_index = [0u32, 0, 0, 0, 0, 1, 0, 2];
 
     let mainnet_exit_root: [u8; 32] = [
-        0x7e, 0x3b, 0xd3, 0xe3, 0x04, 0xb4, 0x64, 0x1f, 0xd1, 0x53, 0x2f, 0x47, 0xfa, 0xc9, 0x56,
-        0xe4, 0x13, 0x03, 0x47, 0x02, 0x0f, 0x08, 0xa3, 0x72, 0xa2, 0x57, 0xf2, 0x82, 0x1f, 0x63,
-        0x8a, 0x60,
+        0x05, 0xc2, 0xbe, 0x9d, 0xd7, 0xf4, 0x7e, 0xc6, 0x29, 0xae, 0x6a, 0xc1, 0x1a, 0x24, 0xb5,
+        0x28, 0x59, 0xfd, 0x35, 0x8c, 0x31, 0x39, 0x00, 0xf5, 0x23, 0x1f, 0x84, 0x58, 0x63, 0x22,
+        0xb5, 0x06,
     ];
 
     let rollup_exit_root: [u8; 32] = [
@@ -116,7 +116,7 @@ pub fn claim_note_test_inputs() -> ClaimNoteTestInputs {
 
     let destination_network = 2u32;
 
-    let metadata: [u32; 8] = [0; 8];
+    let metadata_hash: [u8; 32] = [0u8; 32];
 
     (
         smt_proof_local_exit_root,
@@ -127,7 +127,7 @@ pub fn claim_note_test_inputs() -> ClaimNoteTestInputs {
         origin_network,
         origin_token_address,
         destination_network,
-        metadata,
+        metadata_hash,
     )
 }
 */

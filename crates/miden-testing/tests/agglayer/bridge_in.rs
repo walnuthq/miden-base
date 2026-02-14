@@ -8,6 +8,7 @@ use miden_agglayer::{
     EthAddressFormat,
     EthAmount,
     LeafData,
+    MetadataHash,
     OutputNoteData,
     ProofData,
     create_claim_note,
@@ -88,7 +89,7 @@ async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
         origin_network,
         origin_token_address,
         destination_network,
-        metadata,
+        metadata_hash,
     ) = claim_note_test_inputs();
 
     // Convert AccountId to destination address bytes in the test
@@ -98,7 +99,9 @@ async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
     let serial_num = builder.rng_mut().draw_word();
 
     // Convert amount to EthAmount for the LeafData
-    let amount_eth = EthAmount::from_u32(claim_amount);
+    let mut claim_amount_bytes = [0u8; 32];
+    claim_amount_bytes[28..32].copy_from_slice(&claim_amount.to_be_bytes());
+    let amount_eth = EthAmount::new(claim_amount_bytes);
 
     // Convert Vec<[u8; 32]> to [SmtNode; 32] for SMT proofs
     let local_proof_array: [SmtNode; 32] = smt_proof_local_exit_root[0..32]
@@ -129,7 +132,7 @@ async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
         destination_network,
         destination_address: EthAddressFormat::new(destination_address),
         amount: amount_eth,
-        metadata,
+        metadata_hash: MetadataHash::new(metadata_hash),
     };
 
     let output_note_data = OutputNoteData {
