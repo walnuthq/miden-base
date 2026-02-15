@@ -288,7 +288,7 @@ where
     // This method has a one-to-many call relationship with the `prepare_transaction` method. This
     // method needs to be called only once in order to allow many transactions to be prepared based
     // on the transaction inputs returned by this method.
-    async fn prepare_tx_inputs(
+    pub async fn prepare_tx_inputs(
         &self,
         account_id: AccountId,
         block_ref: BlockNumber,
@@ -340,7 +340,7 @@ where
     ///
     /// Preparation includes loading transaction inputs from the data store, validating them, and
     /// instantiating a transaction host.
-    async fn prepare_transaction(
+    pub async fn prepare_transaction(
         &self,
         tx_inputs: &TransactionInputs,
     ) -> Result<

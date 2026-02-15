@@ -223,6 +223,87 @@ impl TransactionContext {
         tx_executor.execute_transaction(account_id, block_num, notes, tx_args).await
     }
 
+    /// Opens the interactive TUI debugger for this transaction.
+    ///
+    /// This works by:
+    /// 1. Preparing the transaction inputs (host, stack, advice)
+    /// 2. Executing the transaction once with a recording wrapper to capture all
+    ///    event mutations
+    /// 3. Collecting all MAST forests (kernel, account code, note scripts, tx script)
+    /// 4. Building a debugger State with the recorded event mutations for replay
+    /// 5. Launching the TUI debugger
+    ///
+    /// Requires the `diagnostics` feature to be enabled.
+    #[cfg(feature = "diagnostics")]
+    pub async fn open_debugger(self) -> anyhow::Result<()> {
+        use miden_processor::ExecutionOptions;
+        use miden_processor::fast::FastProcessor;
+
+        let account_id = self.account().id();
+        let block_num = self.tx_inputs().block_header().block_num();
+        let notes = self.tx_inputs().input_notes().clone();
+        let tx_args = self.tx_args().clone();
+
+        // 1. Create TransactionExecutor and prepare TX inputs
+        let mut tx_executor =
+            TransactionExecutor::new(&self).with_source_manager(self.source_manager.clone());
+
+        if let Some(authenticator) = self.authenticator() {
+            tx_executor = tx_executor.with_authenticator(authenticator);
+        }
+
+        let tx_inputs = tx_executor
+            .prepare_tx_inputs(account_id, block_num, notes, tx_args)
+            .await?;
+        let (host, stack_inputs, advice_inputs) =
+            tx_executor.prepare_transaction(&tx_inputs).await?;
+
+        // 2. Wrap host with RecordingHostWrapper, execute TX to record mutations
+        let mut recording = crate::recording_host::RecordingHostWrapper::new(host);
+        let program = TransactionKernel::main();
+        let processor = FastProcessor::new(stack_inputs.clone())
+            .with_advice(advice_inputs.clone())
+            .with_options(
+                ExecutionOptions::default()
+                    .with_debugging(true)
+                    .with_tracing(true),
+            );
+        let _ = processor.execute(&program, &mut recording).await?;
+        let recorded_events = recording.into_recorded_events();
+
+        // 3. Collect MAST forests (kernel, account code, note scripts, tx script)
+        let mut forests = vec![program.mast_forest().clone()];
+        forests.push(tx_inputs.account().code().mast());
+        for note in tx_inputs.input_notes().iter() {
+            forests.push(note.note().script().mast());
+        }
+        if let Some(script) = tx_inputs.tx_args().tx_script() {
+            forests.push(script.mast());
+        }
+
+        // 4. Build debugger State and launch TUI
+        let source_manager: Arc<dyn SourceManager> = self.source_manager.clone();
+        let state = miden_debug::State::new_for_transaction(
+            Arc::new(program),
+            stack_inputs,
+            advice_inputs,
+            source_manager,
+            forests,
+            recorded_events,
+        )
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+        // Use a simple no-op logger; the TUI captures its own log entries internally.
+        struct NoopLogger;
+        impl log::Log for NoopLogger {
+            fn enabled(&self, _: &log::Metadata) -> bool { false }
+            fn log(&self, _: &log::Record) {}
+            fn flush(&self) {}
+        }
+        let logger = alloc::boxed::Box::new(NoopLogger);
+        miden_debug::run_with_state(state, logger).map_err(|e| anyhow::anyhow!("{e}"))
+    }
+
     pub fn account(&self) -> &Account {
         &self.account
     }

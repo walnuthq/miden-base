@@ -14,7 +14,7 @@ version.workspace      = true
 
 [features]
 std = ["miden-protocol/std", "miden-standards/std", "miden-tx/std"]
-diagnostics = ["dep:miden-debug"]
+diagnostics = ["dep:miden-debug", "miden-debug/tui", "dep:log"]
 
 [dependencies]
 # Workspace dependencies
@@ -31,6 +31,7 @@ miden-core-lib  = { workspace = true }
 miden-crypto    = { workspace = true }
 miden-debug     = { optional = true, workspace = true }
 miden-processor = { workspace = true }
+log             = { version = "0.4", optional = true }
 
 # External dependencies
 anyhow      = { workspace = true }

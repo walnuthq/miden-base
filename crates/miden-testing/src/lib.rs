@@ -23,6 +23,9 @@ pub mod executor;
 
 mod mock_host;
 
+#[cfg(feature = "diagnostics")]
+mod recording_host;
+
 pub mod utils;
 
 #[cfg(test)]
