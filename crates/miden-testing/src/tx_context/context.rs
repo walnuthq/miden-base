@@ -198,6 +198,31 @@ impl TransactionContext {
         tx_executor.execute_transaction(account_id, block_num, notes, tx_args).await
     }
 
+    /// Executes the transaction with enhanced diagnostic output on failure.
+    ///
+    /// This uses the [`DiagnosticExecutorFactory`](miden_debug::DiagnosticExecutorFactory) which
+    /// wraps program execution with debugging and tracing enabled, and reports rich diagnostics
+    /// (cycle number, call depth, operand stack state) when the transaction fails.
+    ///
+    /// Requires the `diagnostics` feature to be enabled.
+    #[cfg(feature = "diagnostics")]
+    pub async fn execute_with_debug(self) -> Result<ExecutedTransaction, TransactionExecutorError> {
+        let account_id = self.account().id();
+        let block_num = self.tx_inputs().block_header().block_num();
+        let notes = self.tx_inputs().input_notes().clone();
+        let tx_args = self.tx_args().clone();
+
+        let mut tx_executor = TransactionExecutor::new(&self)
+            .with_source_manager(self.source_manager.clone())
+            .with_executor_factory::<miden_debug::DiagnosticExecutorFactory>();
+
+        if let Some(authenticator) = self.authenticator() {
+            tx_executor = tx_executor.with_authenticator(authenticator);
+        }
+
+        tx_executor.execute_transaction(account_id, block_num, notes, tx_args).await
+    }
+
     pub fn account(&self) -> &Account {
         &self.account
     }
