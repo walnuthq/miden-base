@@ -1,9 +1,11 @@
 use alloc::collections::BTreeSet;
 use alloc::sync::Arc;
+use core::marker::PhantomData;
 
-use miden_processor::fast::FastProcessor;
 use miden_processor::advice::AdviceInputs;
-use miden_processor::{ExecutionError, StackInputs};
+use miden_processor::{
+    DefaultExecutorFactory, ExecutionError, ProgramExecutor, ProgramExecutorFactory, StackInputs,
+};
 pub use miden_processor::{ExecutionOptions, MastForestStore};
 use miden_protocol::account::AccountId;
 use miden_protocol::assembly::DefaultSourceManager;
@@ -53,11 +55,18 @@ pub use notes_checker::{
 /// The transaction executor uses dynamic dispatch with trait objects for the [DataStore] and
 /// [TransactionAuthenticator], allowing it to be used with different backend implementations.
 /// At the moment of execution, the [DataStore] is expected to provide all required MAST nodes.
-pub struct TransactionExecutor<'store, 'auth, STORE: 'store, AUTH: 'auth> {
+pub struct TransactionExecutor<
+    'store,
+    'auth,
+    STORE: 'store,
+    AUTH: 'auth,
+    F: ProgramExecutorFactory = DefaultExecutorFactory,
+> {
     data_store: &'store STORE,
     authenticator: Option<&'auth AUTH>,
     source_manager: Arc<dyn SourceManagerSync>,
     exec_options: ExecutionOptions,
+    _executor_factory: PhantomData<F>,
 }
 
 impl<'store, 'auth, STORE, AUTH> TransactionExecutor<'store, 'auth, STORE, AUTH>
@@ -72,6 +81,10 @@ where
     ///
     /// The created executor will not have the authenticator or source manager set, and tracing and
     /// debug mode will be turned off.
+    ///
+    /// By default, the executor uses [`FastProcessor`](miden_processor::FastProcessor) for program
+    /// execution. Use [`with_executor_factory`](Self::with_executor_factory) to plug in a
+    /// different execution engine.
     pub fn new(data_store: &'store STORE) -> Self {
         const _: () = assert!(MIN_TX_EXECUTION_CYCLES <= MAX_TX_EXECUTION_CYCLES);
         TransactionExecutor {
@@ -86,6 +99,31 @@ where
                 false,
             )
             .expect("Must not fail while max cycles is more than min trace length"),
+            _executor_factory: PhantomData,
+        }
+    }
+}
+
+impl<'store, 'auth, STORE, AUTH, F> TransactionExecutor<'store, 'auth, STORE, AUTH, F>
+where
+    STORE: DataStore + 'store + Sync,
+    AUTH: TransactionAuthenticator + 'auth + Sync,
+    F: ProgramExecutorFactory,
+{
+    /// Replaces the program executor factory with a different implementation.
+    ///
+    /// This allows plugging in alternative execution engines (e.g., a debug executor) while
+    /// preserving all other configuration. The default factory creates
+    /// [`FastProcessor`](miden_processor::FastProcessor) instances.
+    pub fn with_executor_factory<F2: ProgramExecutorFactory>(
+        self,
+    ) -> TransactionExecutor<'store, 'auth, STORE, AUTH, F2> {
+        TransactionExecutor {
+            data_store: self.data_store,
+            authenticator: self.authenticator,
+            source_manager: self.source_manager,
+            exec_options: self.exec_options,
+            _executor_factory: PhantomData,
         }
     }
 
@@ -185,10 +223,7 @@ where
 
         let (mut host, stack_inputs, advice_inputs) = self.prepare_transaction(&tx_inputs).await?;
 
-        // instantiate the processor with the execution options
-        let processor = FastProcessor::new(stack_inputs)
-            .with_advice(advice_inputs)
-            .with_options(self.exec_options);
+        let processor = F::create_executor(stack_inputs, advice_inputs, self.exec_options);
 
         let output = processor
             .execute(&TransactionKernel::main(), &mut host)
@@ -234,7 +269,8 @@ where
 
         let (mut host, stack_inputs, advice_inputs) = self.prepare_transaction(&tx_inputs).await?;
 
-        let processor = FastProcessor::new(stack_inputs).with_advice(advice_inputs);
+        let processor =
+            F::create_executor(stack_inputs, advice_inputs, ExecutionOptions::default());
         let output = processor
             .execute(&TransactionKernel::tx_script_main(), &mut host)
             .await

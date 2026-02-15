@@ -1,7 +1,7 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use miden_processor::fast::FastProcessor;
+use miden_processor::{ExecutionOptions, ProgramExecutor, ProgramExecutorFactory};
 use miden_protocol::account::AccountId;
 use miden_protocol::block::BlockNumber;
 use miden_protocol::note::Note;
@@ -73,15 +73,18 @@ impl NoteConsumptionInfo {
 /// The check is performed using the [NoteConsumptionChecker::check_notes_consumability] procedure.
 /// Essentially runs the transaction to make sure that provided input notes could be consumed by the
 /// account.
-pub struct NoteConsumptionChecker<'a, STORE, AUTH>(&'a TransactionExecutor<'a, 'a, STORE, AUTH>);
+pub struct NoteConsumptionChecker<'a, STORE, AUTH, F: ProgramExecutorFactory = super::DefaultExecutorFactory>(
+    &'a TransactionExecutor<'a, 'a, STORE, AUTH, F>,
+);
 
-impl<'a, STORE, AUTH> NoteConsumptionChecker<'a, STORE, AUTH>
+impl<'a, STORE, AUTH, F> NoteConsumptionChecker<'a, STORE, AUTH, F>
 where
     STORE: DataStore + Sync,
     AUTH: TransactionAuthenticator + Sync,
+    F: ProgramExecutorFactory,
 {
     /// Creates a new [`NoteConsumptionChecker`] instance with the given transaction executor.
-    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH>) -> Self {
+    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH, F>) -> Self {
         NoteConsumptionChecker(tx_executor)
     }
 
@@ -337,7 +340,8 @@ where
                 .await
                 .map_err(TransactionCheckerError::TransactionPreparation)?;
 
-        let processor = FastProcessor::new(stack_inputs).with_advice(advice_inputs);
+        let processor =
+            F::create_executor(stack_inputs, advice_inputs, ExecutionOptions::default());
         let result = processor
             .execute(&TransactionKernel::main(), &mut host)
             .await

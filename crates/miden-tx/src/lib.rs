@@ -18,6 +18,7 @@ pub use executor::{
     TransactionExecutor,
     TransactionExecutorHost,
 };
+pub use miden_processor::{DefaultExecutorFactory, ProgramExecutor, ProgramExecutorFactory};
 
 mod host;
 pub use host::{AccountProcedureIndexMap, LinkMap, MemoryViewer, ScriptMastForestStore};
