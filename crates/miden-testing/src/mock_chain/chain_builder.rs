@@ -13,7 +13,8 @@ const DEFAULT_FAUCET_DECIMALS: u8 = 10;
 // ================================================================================================
 
 use itertools::Itertools;
-use miden_processor::crypto::RpoRandomCoin;
+use miden_processor::field::QuotientMap;
+use miden_protocol::crypto::rand::RpoRandomCoin;
 use miden_protocol::account::delta::AccountUpdateDetails;
 use miden_protocol::account::{
     Account,
@@ -308,7 +309,7 @@ impl MockChainBuilder {
     ) -> anyhow::Result<Account> {
         let token_symbol = TokenSymbol::new(token_symbol)
             .with_context(|| format!("invalid token symbol: {token_symbol}"))?;
-        let max_supply_felt = max_supply.try_into().map_err(|_| {
+        let max_supply_felt = Felt::from_canonical_checked(max_supply).ok_or_else(|| {
             anyhow::anyhow!("max supply value cannot be converted to Felt: {max_supply}")
         })?;
         let basic_faucet =
@@ -334,10 +335,10 @@ impl MockChainBuilder {
         max_supply: u64,
         token_supply: Option<u64>,
     ) -> anyhow::Result<Account> {
-        let max_supply = Felt::try_from(max_supply)
-            .map_err(|err| anyhow::anyhow!("failed to convert max_supply to felt: {err}"))?;
-        let token_supply = Felt::try_from(token_supply.unwrap_or(0))
-            .map_err(|err| anyhow::anyhow!("failed to convert token_supply to felt: {err}"))?;
+        let max_supply = Felt::from_canonical_checked(max_supply)
+            .ok_or_else(|| anyhow::anyhow!("failed to convert max_supply to felt"))?;
+        let token_supply = Felt::from_canonical_checked(token_supply.unwrap_or(0))
+            .ok_or_else(|| anyhow::anyhow!("failed to convert token_supply to felt"))?;
         let token_symbol =
             TokenSymbol::new(token_symbol).context("failed to create token symbol")?;
 
@@ -364,10 +365,10 @@ impl MockChainBuilder {
         owner_account_id: AccountId,
         token_supply: Option<u64>,
     ) -> anyhow::Result<Account> {
-        let max_supply = Felt::try_from(max_supply)
-            .map_err(|err| anyhow::anyhow!("failed to convert max_supply to felt: {err}"))?;
-        let token_supply = Felt::try_from(token_supply.unwrap_or(0))
-            .map_err(|err| anyhow::anyhow!("failed to convert token_supply to felt: {err}"))?;
+        let max_supply = Felt::from_canonical_checked(max_supply)
+            .ok_or_else(|| anyhow::anyhow!("failed to convert max_supply to felt"))?;
+        let token_supply = Felt::from_canonical_checked(token_supply.unwrap_or(0))
+            .ok_or_else(|| anyhow::anyhow!("failed to convert token_supply to felt"))?;
         let token_symbol =
             TokenSymbol::new(token_symbol).context("failed to create token symbol")?;
 

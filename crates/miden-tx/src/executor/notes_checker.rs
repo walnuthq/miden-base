@@ -12,7 +12,7 @@ use miden_protocol::transaction::{
     TransactionInputs,
     TransactionKernel,
 };
-use miden_prover::AdviceInputs;
+use miden_processor::advice::AdviceInputs;
 use miden_standards::note::{NoteConsumptionStatus, StandardNote};
 
 use super::TransactionExecutor;
@@ -337,8 +337,7 @@ where
                 .await
                 .map_err(TransactionCheckerError::TransactionPreparation)?;
 
-        let processor =
-            FastProcessor::new_with_advice_inputs(stack_inputs.as_slice(), advice_inputs);
+        let processor = FastProcessor::new(stack_inputs).with_advice(advice_inputs);
         let result = processor
             .execute(&TransactionKernel::main(), &mut host)
             .await

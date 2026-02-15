@@ -280,7 +280,7 @@ fn is_not_a_non_fungible_asset(asset: Word) -> bool {
 mod tests {
 
     use miden_crypto::Word;
-    use miden_crypto::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
 
     use super::{Asset, FungibleAsset, NonFungibleAsset, NonFungibleAssetDetails};
     use crate::account::{AccountId, AccountIdPrefix};

@@ -6,8 +6,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use miden_assembly::Library;
-use miden_assembly::utils::Deserializable;
-use miden_core::{Felt, FieldElement, Program, Word};
+use miden_assembly::serde::Deserializable;
+use miden_core::{Felt, Word};
+use miden_core::program::Program;
+use miden_protocol::PrimeCharacteristicRing;
 use miden_protocol::account::component::AccountComponentMetadata;
 use miden_protocol::account::{
     Account,
@@ -238,7 +240,7 @@ pub fn create_agglayer_faucet_component(
     // Create network faucet metadata slot: [0, max_supply, decimals, token_symbol]
     let token_symbol = TokenSymbol::new(token_symbol).expect("Token symbol should be valid");
     let metadata_word =
-        Word::new([FieldElement::ZERO, max_supply, Felt::from(decimals), token_symbol.into()]);
+        Word::new([Felt::ZERO, max_supply, Felt::from_u8(decimals), token_symbol.into()]);
     let metadata_slot =
         StorageSlot::with_value(NetworkFungibleFaucet::metadata_slot().clone(), metadata_word);
 

@@ -18,7 +18,7 @@ use miden_protocol::note::{
     NoteType,
 };
 use miden_protocol::utils::sync::LazyLock;
-use miden_protocol::{Felt, Word};
+use miden_protocol::{Felt, PrimeCharacteristicRing, Word};
 
 use super::P2idNote;
 use crate::StandardsLib;
@@ -97,8 +97,8 @@ impl SwapNote {
         let requested_asset_word: Word = requested_asset.into();
         let payback_tag = NoteTag::with_account_target(sender);
 
-        let attachment_scheme = Felt::from(payback_note_attachment.attachment_scheme().as_u32());
-        let attachment_kind = Felt::from(payback_note_attachment.attachment_kind().as_u8());
+        let attachment_scheme = Felt::from_u32(payback_note_attachment.attachment_scheme().as_u32());
+        let attachment_kind = Felt::from_u8(payback_note_attachment.attachment_kind().as_u8());
         let attachment = payback_note_attachment.content().to_word();
 
         let mut inputs = Vec::with_capacity(16);

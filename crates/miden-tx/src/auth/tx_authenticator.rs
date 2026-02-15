@@ -11,7 +11,7 @@ use miden_protocol::transaction::TransactionSummary;
 use miden_protocol::{Felt, Hasher, Word};
 
 use crate::errors::AuthenticationError;
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::serde::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 // SIGNATURE DATA
 // ================================================================================================

@@ -1,6 +1,6 @@
 use miden::core::mem
 use miden::core::collections::mmr
-use miden::core::crypto::hashes::rpo256
+use miden::core::crypto::hashes::poseidon2
 use miden::core::word
 
 use $kernel::account
@@ -145,7 +145,7 @@ proc process_kernel_data
     # AS => []
 
     # extract the resulting hash
-    exec.rpo256::squeeze_digest
+    exec.poseidon2::squeeze_digest
     # OS => [SEQ_KERNEL_PROC_HASH, kernel_procs_ptr', TX_KERNEL_COMMITMENT]
     # AS => []
 
@@ -202,12 +202,12 @@ proc process_block_data
     # read block data and compute its sub commitment
     # see `Advice stack` above for details.
     padw padw padw
-    adv_pipe exec.rpo256::permute
-    adv_pipe exec.rpo256::permute
-    adv_pipe exec.rpo256::permute
-    adv_pipe exec.rpo256::permute
-    adv_pipe exec.rpo256::permute
-    exec.rpo256::squeeze_digest
+    adv_pipe exec.poseidon2::permute
+    adv_pipe exec.poseidon2::permute
+    adv_pipe exec.poseidon2::permute
+    adv_pipe exec.poseidon2::permute
+    adv_pipe exec.poseidon2::permute
+    exec.poseidon2::squeeze_digest
     # => [SUB_COMMITMENT, block_data_ptr', block_num]
 
     # store the note root in memory
@@ -216,7 +216,7 @@ proc process_block_data
     # => [NOTE_ROOT, SUB_COMMITMENT, block_data_ptr', block_num]
 
     # merge the note root with the sub commitment to get the block commitment
-    exec.rpo256::merge
+    exec.poseidon2::merge
     # => [BLOCK_COMMITMENT, block_data_ptr', block_num]
 
     # assert that the block commitment matches the commitment in global inputs
@@ -364,9 +364,9 @@ proc process_account_data
 
     # read account details and compute its digest. See `Advice stack` above for details.
     padw padw padw
-    adv_pipe exec.rpo256::permute
-    adv_pipe exec.rpo256::permute
-    exec.rpo256::squeeze_digest
+    adv_pipe exec.poseidon2::permute
+    adv_pipe exec.poseidon2::permute
+    exec.poseidon2::squeeze_digest
     # => [ACCOUNT_COMMITMENT, acct_data_ptr']
 
     movup.4 drop
@@ -491,7 +491,7 @@ proc authenticate_note
 
     # read data from advice and compute hash(BLOCK_SUB_COMMITMENT || NOTE_ROOT)
     padw padw padw
-    adv_pipe exec.rpo256::permute
+    adv_pipe exec.poseidon2::permute
     # => [PERM, COMPUTED_BLOCK_COMMITMENT, PERM, mem_ptr', BLOCK_COMMITMENT, NOTE_COMMITMENT]
 
     dropw
@@ -553,9 +553,9 @@ proc process_input_note_details
 
     # read input note's data and compute its digest. See `Advice stack` above for details.
     padw padw padw
-    adv_pipe exec.rpo256::permute
-    adv_pipe exec.rpo256::permute
-    exec.rpo256::squeeze_digest
+    adv_pipe exec.poseidon2::permute
+    adv_pipe exec.poseidon2::permute
+    exec.poseidon2::squeeze_digest
     # => [NULLIFIER, note_data_ptr + 16]
 
     movup.4 drop
@@ -683,7 +683,7 @@ proc process_note_assets
     # loop and read assets from the advice provider
     while.true
         # read data and compute its digest. See `Advice stack` above for details.
-        adv_pipe exec.rpo256::permute
+        adv_pipe exec.poseidon2::permute
         # => [PERM, PERM, PERM, assets_ptr+8, note_ptr, counter, rounded_num_assets]
 
         # update counter
@@ -696,7 +696,7 @@ proc process_note_assets
     end
     # => [PERM, PERM, PERM, assets_ptr+8n, note_ptr, counter+2n, rounded_num_assets]
 
-    exec.rpo256::squeeze_digest
+    exec.poseidon2::squeeze_digest
     # => [ASSET_COMMITMENT_COMPUTED, assets_ptr+8n, note_ptr, counter+2n, rounded_num_assets]
 
     swapw drop movdn.2 drop drop
@@ -769,15 +769,15 @@ end
 #! - NOTE_ID is the note's id, i.e. `hash(RECIPIENT || ASSET_COMMITMENT)`.
 proc compute_input_note_id
     # compute SERIAL_COMMITMENT: hash(SERIAL_NUMBER || EMPTY_WORD)
-    dup exec.memory::get_input_note_serial_num padw exec.rpo256::merge
+    dup exec.memory::get_input_note_serial_num padw exec.poseidon2::merge
     # => [SERIAL_COMMITMENT, note_ptr]
 
     # compute MERGE_SCRIPT: hash(SERIAL_COMMITMENT || SCRIPT_ROOT)
-    dup.4 exec.memory::get_input_note_script_root exec.rpo256::merge
+    dup.4 exec.memory::get_input_note_script_root exec.poseidon2::merge
     # => [MERGE_SCRIPT, note_ptr]
 
     # compute RECIPIENT: hash(MERGE_SCRIPT || STORAGE_COMMITMENT)
-    dup.4 exec.memory::get_input_note_storage_commitment exec.rpo256::merge
+    dup.4 exec.memory::get_input_note_storage_commitment exec.poseidon2::merge
     # => [RECIPIENT, note_ptr]
 
     # store the recipient in memory
@@ -785,7 +785,7 @@ proc compute_input_note_id
     # => [RECIPIENT, note_ptr]
 
     # compute NOTE_ID: hash(RECIPIENT || ASSET_COMMITMENT)
-    movup.4 exec.memory::get_input_note_assets_commitment exec.rpo256::merge
+    movup.4 exec.memory::get_input_note_assets_commitment exec.poseidon2::merge
     # => [NOTE_ID]
 end
 
@@ -861,7 +861,7 @@ proc process_input_note
     # => [NOTE_ATTACHMENT, NOTE_METADATA_HEADER, note_ptr, NULLIFIER, HASHER_CAPACITY]
 
     # compute hash(NOTE_METADATA_HEADER || NOTE_ATTACHMENT)
-    exec.rpo256::merge
+    exec.poseidon2::merge
     # => [NOTE_METADATA_COMMITMENT, note_ptr, NULLIFIER, HASHER_CAPACITY]
 
     movup.4
@@ -894,7 +894,7 @@ proc process_input_note
     # ---------------------------------------------------------------------------------------------
 
     # NOTE_COMMITMENT: `hash(NOTE_ID || NOTE_METADATA_COMMITMENT)`
-    swapw exec.rpo256::merge
+    swapw exec.poseidon2::merge
     # => [NOTE_COMMITMENT, NULLIFIER, HASHER_CAPACITY]
 
     adv_push.1
@@ -912,7 +912,7 @@ proc process_input_note
     # => [EMPTY_WORD_OR_NOTE_COMMITMENT, NULLIFIER, HASHER_CAPACITY]
 
     # update the input note commitment
-    exec.rpo256::permute
+    exec.poseidon2::permute
     # => [PERM, PERM, PERM]
 end
 
@@ -1003,7 +1003,7 @@ proc process_input_notes_data
         # => [has_more_notes, PERM, PERM, PERM, idx+1, num_notes]
     end
 
-    exec.rpo256::squeeze_digest
+    exec.poseidon2::squeeze_digest
     # => [INPUT_NOTES_COMMITMENT, idx+1, num_notes]
 
     # assert the input notes and the commitment matches

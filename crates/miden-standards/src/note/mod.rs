@@ -5,7 +5,7 @@ use core::error::Error;
 use miden_protocol::account::AccountId;
 use miden_protocol::block::BlockNumber;
 use miden_protocol::note::{Note, NoteScript};
-use miden_protocol::{Felt, Word};
+use miden_protocol::{Felt, PrimeField64, Word};
 
 use crate::account::faucets::{BasicFungibleFaucet, NetworkFungibleFaucet};
 use crate::account::interface::{AccountComponentInterface, AccountInterface, AccountInterfaceExt};
@@ -310,10 +310,10 @@ fn parse_p2ide_storage(
 
     let receiver_account_id = try_read_account_id_from_storage(note_storage)?;
 
-    let reclaim_height = u32::try_from(note_storage[2])
+    let reclaim_height = u32::try_from(note_storage[2].as_canonical_u64())
         .map_err(|_err| StaticAnalysisError::new("reclaim block height should be a u32"))?;
 
-    let timelock_height = u32::try_from(note_storage[3])
+    let timelock_height = u32::try_from(note_storage[3].as_canonical_u64())
         .map_err(|_err| StaticAnalysisError::new("timelock block height should be a u32"))?;
 
     Ok((receiver_account_id, reclaim_height, timelock_height))

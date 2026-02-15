@@ -3,8 +3,8 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use miden_core::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
-use miden_processor::DeserializationError;
+use miden_core::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
+use miden_core::serde::DeserializationError;
 
 use super::super::{InitStorageData, StorageValueName};
 use super::{WordSchema, parse_storage_value_with_schema, validate_description_ascii};

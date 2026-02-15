@@ -676,7 +676,7 @@ fn test_get_auth_scheme_ecdsa_k256_keccak() {
 }
 
 #[test]
-fn test_get_auth_scheme_falcon512_rpo() {
+fn test_get_auth_scheme_falcon512_poseidon2() {
     let mock_seed = Word::from([0, 1, 2, 3u32]).as_bytes();
     let wallet_account = AccountBuilder::new(mock_seed)
         .with_auth_component(get_mock_auth_component())

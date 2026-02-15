@@ -54,9 +54,9 @@ use miden_standards::code_builder::CodeBuilder;
 use miden_standards::testing::account_component::MockAccountComponent;
 use miden_standards::testing::mock_account::MockAccountExt;
 use miden_tx::LocalTransactionProver;
+use miden_crypto::rand::random_word;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
-use winter_rand_utils::rand_value;
 
 use super::{Felt, StackInputs, ZERO};
 use crate::executor::CodeExecutor;
@@ -894,7 +894,7 @@ async fn prove_account_creation_with_non_empty_storage() -> anyhow::Result<()> {
     let slot1 = StorageSlot::with_value(slot_name1.clone(), Word::from([10, 20, 30, 40u32]));
     let mut map_entries = Vec::new();
     for _ in 0..10 {
-        map_entries.push((rand_value::<Word>(), rand_value::<Word>()));
+        map_entries.push((random_word(), random_word()));
     }
     let map_slot =
         StorageSlot::with_map(slot_name2.clone(), StorageMap::with_entries(map_entries.clone())?);

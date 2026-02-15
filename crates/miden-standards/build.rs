@@ -46,6 +46,9 @@ fn main() -> Result<()> {
     // set source directory to {OUT_DIR}/asm
     let source_dir = dst.join(ASM_DIR);
 
+    // Remove macOS resource fork files from the source directory.
+    shared::remove_resource_forks(&source_dir);
+
     // set target directory to {OUT_DIR}/assets
     let target_dir = Path::new(&build_dir).join(ASSETS_DIR);
 
@@ -242,6 +245,11 @@ mod shared {
                     }
                     todo.push(src_dir);
                 } else {
+                    // Skip macOS resource fork files (._*) that appear on
+                    // filesystems without native extended attribute support.
+                    if path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("._")) {
+                        continue;
+                    }
                     let dst_file = dst.join(path.strip_prefix(&prefix).unwrap());
                     fs::copy(&path, dst_file).unwrap();
                 }
@@ -279,6 +287,10 @@ mod shared {
     /// # Errors
     /// Returns an error if the path could not be converted to a UTF-8 string.
     pub fn is_masm_file(path: &Path) -> io::Result<bool> {
+        // Skip macOS resource fork files (._*).
+        if path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("._")) {
+            return Ok(false);
+        }
         if let Some(extension) = path.extension() {
             let extension = extension
                 .to_str()
@@ -430,6 +442,18 @@ mod shared {
         std::fs::write(module.file_name, output).into_diagnostic()?;
 
         Ok(())
+    }
+
+    pub fn remove_resource_forks(dir: &Path) {
+        for entry in WalkDir::new(dir) {
+            let Ok(entry) = entry else { continue };
+            let path = entry.path();
+            if path.is_file()
+                && path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("._"))
+            {
+                let _ = std::fs::remove_file(path);
+            }
+        }
     }
 
     pub type ErrorName = String;

@@ -2,7 +2,8 @@ use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use miden_core::{Felt, FieldElement, Word};
+use miden_core::{Felt, Word};
+use miden_protocol::PrimeCharacteristicRing;
 use miden_protocol::account::AccountId;
 use miden_protocol::crypto::SequentialCommit;
 use miden_protocol::crypto::rand::FeltRng;

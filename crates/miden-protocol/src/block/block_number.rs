@@ -1,3 +1,4 @@
+use crate::PrimeCharacteristicRing;
 use core::fmt;
 use core::ops::Add;
 
@@ -100,7 +101,7 @@ impl Deserializable for BlockNumber {
 
 impl From<BlockNumber> for Felt {
     fn from(value: BlockNumber) -> Self {
-        Felt::from(value.as_u32())
+        Felt::from_u32(value.as_u32())
     }
 }
 

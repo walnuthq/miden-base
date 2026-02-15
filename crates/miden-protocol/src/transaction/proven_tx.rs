@@ -686,9 +686,9 @@ mod tests {
     use alloc::collections::BTreeMap;
 
     use anyhow::Context;
-    use miden_core::utils::Deserializable;
+    use miden_core::serde::Deserializable;
+    use miden_crypto::rand::random_word;
     use miden_verifier::ExecutionProof;
-    use winter_rand_utils::rand_value;
 
     use super::ProvenTransaction;
     use crate::account::delta::AccountUpdateDetails;
@@ -714,7 +714,7 @@ mod tests {
     use crate::testing::add_component::AddComponent;
     use crate::testing::noop_auth_component::NoopAuthComponent;
     use crate::transaction::{ProvenTransactionBuilder, TxAccountUpdate};
-    use crate::utils::Serializable;
+    use crate::utils::serde::Serializable;
     use crate::{ACCOUNT_UPDATE_MAX_SIZE, EMPTY_WORD, LexicographicWord, ONE, Word};
 
     fn check_if_sync<T: Sync>() {}
@@ -767,7 +767,7 @@ mod tests {
         // 32 bytes in size.
         let required_entries = ACCOUNT_UPDATE_MAX_SIZE / (2 * 32);
         for _ in 0..required_entries {
-            map.insert(LexicographicWord::new(rand_value::<Word>()), rand_value::<Word>());
+            map.insert(LexicographicWord::new(random_word()), random_word());
         }
         let storage_delta = StorageMapDelta::new(map);
 

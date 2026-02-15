@@ -22,20 +22,20 @@ use miden_protocol::{Felt, Word};
 use crate::account::components::falcon_512_rpo_acl_library;
 
 /// The schema type ID for Falcon512Rpo public keys.
-const PUB_KEY_TYPE_ID: &str = "miden::standards::auth::falcon512_rpo::pub_key";
+const PUB_KEY_TYPE_ID: &str = "miden::standards::auth::falcon512_poseidon2::pub_key";
 
 static PUBKEY_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo_acl::public_key")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2_acl::public_key")
         .expect("storage slot name should be valid")
 });
 
 static CONFIG_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo_acl::config")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2_acl::config")
         .expect("storage slot name should be valid")
 });
 
 static TRIGGER_PROCEDURE_ROOT_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo_acl::trigger_procedure_roots")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2_acl::trigger_procedure_roots")
         .expect("storage slot name should be valid")
 });
 
@@ -150,7 +150,7 @@ pub struct AuthFalcon512RpoAcl {
 
 impl AuthFalcon512RpoAcl {
     /// The name of the component.
-    pub const NAME: &'static str = "miden::auth::falcon512_rpo_acl";
+    pub const NAME: &'static str = "miden::auth::falcon512_poseidon2_acl";
 
     /// Creates a new [`AuthFalcon512RpoAcl`] component with the given `public_key` and
     /// configuration.

@@ -7,9 +7,9 @@ use std::{
 };
 
 #[cfg(feature = "std")]
-use miden_core::utils::SliceReader;
-use miden_core::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
-use miden_processor::DeserializationError;
+use miden_core::serde::SliceReader;
+use miden_core::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
+use miden_core::serde::DeserializationError;
 
 use super::{Note, NoteDetails, NoteId, NoteInclusionProof, NoteTag};
 use crate::block::BlockNumber;
@@ -137,7 +137,7 @@ impl Deserializable for NoteFile {
 mod tests {
     use alloc::vec::Vec;
 
-    use miden_core::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
 
     use crate::Word;
     use crate::account::AccountId;

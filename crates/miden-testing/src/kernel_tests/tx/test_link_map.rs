@@ -7,7 +7,7 @@ use miden_processor::{ONE, ZERO};
 use miden_protocol::{EMPTY_WORD, LexicographicWord, Word};
 use miden_tx::{LinkMap, MemoryViewer};
 use rand::seq::IteratorRandom;
-use winter_rand_utils::rand_value;
+use miden_crypto::rand::random_word;
 
 use crate::TransactionContextBuilder;
 
@@ -604,8 +604,8 @@ fn generate_entries(count: u64) -> Vec<(LexicographicWord, (Word, Word))> {
     (0..count)
         .map(|_| {
             let key = rand_link_map_key();
-            let value0 = rand_value::<Word>();
-            let value1 = rand_value::<Word>();
+            let value0 = random_word();
+            let value1 = random_word();
             (key, (value0, value1))
         })
         .collect()
@@ -621,10 +621,10 @@ fn generate_updates(
         .iter()
         .choose_multiple(&mut rng, num_updates)
         .into_iter()
-        .map(|(key, _)| (*key, (rand_value::<Word>(), rand_value::<Word>())))
+        .map(|(key, _)| (*key, (random_word(), random_word())))
         .collect()
 }
 
 fn rand_link_map_key() -> LexicographicWord {
-    LexicographicWord::new(rand_value())
+    LexicographicWord::new(random_word())
 }

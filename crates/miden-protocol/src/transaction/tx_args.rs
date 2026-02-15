@@ -3,7 +3,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use miden_crypto::merkle::InnerNodeInfo;
-use miden_processor::MastNodeExt;
+use miden_core::mast::MastNodeExt;
 
 use super::{Felt, Hasher, Word};
 use crate::account::auth::{PublicKeyCommitment, Signature};
@@ -362,7 +362,7 @@ impl Deserializable for TransactionScript {
 #[cfg(test)]
 mod tests {
     use miden_core::AdviceMap;
-    use miden_core::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
 
     use crate::transaction::TransactionArgs;
 

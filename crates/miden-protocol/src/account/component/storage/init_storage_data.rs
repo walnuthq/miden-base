@@ -8,7 +8,7 @@ use super::StorageValueName;
 use super::value_name::StorageValueNameError;
 use crate::account::StorageSlotName;
 use crate::errors::StorageSlotNameError;
-use crate::{Felt, FieldElement, Word};
+use crate::{Felt, PrimeCharacteristicRing, Word};
 
 /// A word value provided via [`InitStorageData`].
 ///
@@ -91,10 +91,10 @@ impl From<[u32; 4]> for WordValue {
     /// Converts a `[u32; 4]` to a [`WordValue`] by converting each element to a [`Felt`].
     fn from(value: [u32; 4]) -> Self {
         WordValue::FullyTyped(Word::from([
-            Felt::from(value[0]),
-            Felt::from(value[1]),
-            Felt::from(value[2]),
-            Felt::from(value[3]),
+            Felt::from_u32(value[0]),
+            Felt::from_u32(value[1]),
+            Felt::from_u32(value[2]),
+            Felt::from_u32(value[3]),
         ]))
     }
 }

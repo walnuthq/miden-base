@@ -4,7 +4,7 @@ use core::ops::RangeTo;
 
 use crate::block::{BlockHeader, BlockNumber};
 use crate::crypto::merkle::InnerNodeInfo;
-use crate::crypto::merkle::mmr::{MmrPeaks, PartialMmr};
+use crate::crypto::merkle::mmr::{MmrPeaks, MmrProof, PartialMmr};
 use crate::errors::PartialBlockchainError;
 use crate::utils::serde::{Deserializable, Serializable};
 
@@ -73,7 +73,8 @@ impl PartialBlockchain {
                 .expect("block should not exceed chain length")
                 .expect("block should be tracked in the partial MMR");
 
-            partial_chain.mmr.peaks().verify(block.commitment(), proof).map_err(|source| {
+            let mmr_proof = MmrProof::new(proof, block.commitment());
+            partial_chain.mmr.peaks().verify(block.commitment(), mmr_proof).map_err(|source| {
                 PartialBlockchainError::BlockHeaderCommitmentMismatch {
                     block_num: *block_num,
                     block_commitment: block.commitment(),
@@ -252,16 +253,16 @@ impl PartialBlockchain {
 }
 
 impl Serializable for PartialBlockchain {
-    fn write_into<W: miden_crypto::utils::ByteWriter>(&self, target: &mut W) {
+    fn write_into<W: miden_core::serde::ByteWriter>(&self, target: &mut W) {
         self.mmr.write_into(target);
         self.blocks.write_into(target);
     }
 }
 
 impl Deserializable for PartialBlockchain {
-    fn read_from<R: miden_crypto::utils::ByteReader>(
+    fn read_from<R: miden_core::serde::ByteReader>(
         source: &mut R,
-    ) -> Result<Self, miden_crypto::utils::DeserializationError> {
+    ) -> Result<Self, miden_core::serde::DeserializationError> {
         let mmr = PartialMmr::read_from(source)?;
         let blocks = BTreeMap::<BlockNumber, BlockHeader>::read_from(source)?;
         Ok(Self { mmr, blocks })
@@ -281,7 +282,7 @@ impl Default for PartialBlockchain {
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
-    use miden_core::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 

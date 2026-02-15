@@ -1,3 +1,4 @@
+use crate::QuotientMap;
 use alloc::collections::BTreeMap;
 use alloc::collections::btree_map::Entry;
 use alloc::vec::Vec;
@@ -194,7 +195,7 @@ impl AccountStorageDelta {
                         elements.extend_from_slice(value.as_elements());
                     }
 
-                    let num_changed_entries = Felt::try_from(map_delta.num_entries()).expect(
+                    let num_changed_entries = Felt::from_canonical_checked(map_delta.num_entries() as u64).expect(
                         "number of changed entries should not exceed max representable felt",
                     );
 
@@ -290,7 +291,7 @@ impl Deserializable for AccountStorageDelta {
         let num_maps = source.read_u8()? as usize;
         deltas.extend(
             source
-                .read_many::<(StorageSlotName, StorageMapDelta)>(num_maps)?
+                .read_many_iter::<(StorageSlotName, StorageMapDelta)>(num_maps)?.collect::<Result<Vec<_>, _>>()?
                 .into_iter()
                 .map(|(slot_name, map_delta)| (slot_name, StorageSlotDelta::Map(map_delta))),
         );

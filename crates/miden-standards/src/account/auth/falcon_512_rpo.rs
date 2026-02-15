@@ -11,17 +11,17 @@ use miden_protocol::utils::sync::LazyLock;
 use crate::account::components::falcon_512_rpo_library;
 
 /// The schema type ID for Falcon512Rpo public keys.
-const PUB_KEY_TYPE_ID: &str = "miden::standards::auth::falcon512_rpo::pub_key";
+const PUB_KEY_TYPE_ID: &str = "miden::standards::auth::falcon512_poseidon2::pub_key";
 
 static FALCON_PUBKEY_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo::public_key")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2::public_key")
         .expect("storage slot name should be valid")
 });
 
 /// An [`AccountComponent`] implementing the Falcon512Rpo signature scheme for authentication of
 /// transactions.
 ///
-/// It reexports the procedures from `miden::standards::auth::falcon512_rpo`. When linking against
+/// It reexports the procedures from `miden::standards::auth::falcon512_poseidon2`. When linking against
 /// this component, the `miden` library (i.e. [`ProtocolLib`](miden_protocol::ProtocolLib)) must
 /// be available to the assembler which is the case when using [`CodeBuilder`][builder]. The
 /// procedures of this component are:
@@ -43,7 +43,7 @@ pub struct AuthFalcon512Rpo {
 
 impl AuthFalcon512Rpo {
     /// The name of the component.
-    pub const NAME: &'static str = "miden::auth::falcon512_rpo";
+    pub const NAME: &'static str = "miden::auth::falcon512_poseidon2";
 
     /// Creates a new [`AuthFalcon512Rpo`] component with the given `public_key`.
     pub fn new(pub_key: PublicKeyCommitment) -> Self {

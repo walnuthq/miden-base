@@ -2,8 +2,8 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use core::fmt;
 
-use miden_core::FieldElement;
-use miden_protocol::Felt;
+use miden_core::field::QuotientMap;
+use miden_protocol::{Felt, PrimeCharacteristicRing, PrimeField64};
 use miden_protocol::account::AccountId;
 use miden_protocol::utils::{HexParseError, bytes_to_hex_string, hex_to_bytes};
 
@@ -80,8 +80,8 @@ impl EthAddressFormat {
         let felts: [Felt; 2] = account_id.into();
 
         let mut out = [0u8; 20];
-        out[4..12].copy_from_slice(&felts[0].as_int().to_be_bytes());
-        out[12..20].copy_from_slice(&felts[1].as_int().to_be_bytes());
+        out[4..12].copy_from_slice(&felts[0].as_canonical_u64().to_be_bytes());
+        out[12..20].copy_from_slice(&felts[1].as_canonical_u64().to_be_bytes());
 
         Self(out)
     }
@@ -125,7 +125,7 @@ impl EthAddressFormat {
         for (felt, chunk) in result.iter_mut().zip(self.0.chunks(4).skip(1).rev()) {
             let value = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
             // u32 values always fit in Felt, so this conversion is safe
-            *felt = Felt::try_from(value as u64).expect("u32 value should always fit in Felt");
+            *felt = Felt::new(value as u64);
         }
 
         result
@@ -147,11 +147,11 @@ impl EthAddressFormat {
         let (prefix, suffix) = Self::bytes20_to_prefix_suffix(self.0)?;
 
         // Use `Felt::try_from(u64)` to avoid potential truncating conversion
-        let prefix_felt =
-            Felt::try_from(prefix).map_err(|_| AddressConversionError::FeltOutOfField)?;
+        let prefix_felt = Felt::from_canonical_checked(prefix)
+            .ok_or(AddressConversionError::FeltOutOfField)?;
 
-        let suffix_felt =
-            Felt::try_from(suffix).map_err(|_| AddressConversionError::FeltOutOfField)?;
+        let suffix_felt = Felt::from_canonical_checked(suffix)
+            .ok_or(AddressConversionError::FeltOutOfField)?;
 
         AccountId::try_from([prefix_felt, suffix_felt])
             .map_err(|_| AddressConversionError::InvalidAccountId)

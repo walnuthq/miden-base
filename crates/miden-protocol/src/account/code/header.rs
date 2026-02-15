@@ -1,10 +1,9 @@
 use alloc::vec::Vec;
 
-use miden_core::{
-    Felt,
-    utils::{Deserializable, Serializable},
-};
-use miden_processor::Digest;
+use miden_core::Felt;
+use miden_core::serde::{Deserializable, Serializable};
+
+use crate::Word;
 
 use super::{AccountCode, build_procedure_commitment, procedures_as_elements};
 use crate::account::AccountProcedureInfo;
@@ -23,7 +22,7 @@ use crate::account::AccountProcedureInfo;
 /// is not required.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AccountCodeHeader {
-    commitment: Digest,
+    commitment: Word,
     procedures: Vec<AccountProcedureInfo>,
 }
 
@@ -37,7 +36,7 @@ impl AccountCodeHeader {
     }
 
     /// Returns the commitment of this account code header.
-    pub fn commitment(&self) -> Digest {
+    pub fn commitment(&self) -> Word {
         self.commitment
     }
 
@@ -65,15 +64,15 @@ impl From<AccountCode> for AccountCodeHeader {
 }
 
 impl Serializable for AccountCodeHeader {
-    fn write_into<W: miden_core::utils::ByteWriter>(&self, target: &mut W) {
+    fn write_into<W: miden_core::serde::ByteWriter>(&self, target: &mut W) {
         target.write(&self.procedures);
     }
 }
 
 impl Deserializable for AccountCodeHeader {
-    fn read_from<R: miden_core::utils::ByteReader>(
+    fn read_from<R: miden_core::serde::ByteReader>(
         source: &mut R,
-    ) -> Result<Self, miden_processor::DeserializationError> {
+    ) -> Result<Self, miden_core::serde::DeserializationError> {
         let procedures: Vec<AccountProcedureInfo> = source.read()?;
         let commitment = build_procedure_commitment(&procedures);
 

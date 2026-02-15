@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 
 use anyhow::Context;
 use assert_matches::assert_matches;
-use miden_processor::crypto::RpoRandomCoin;
+use miden_protocol::crypto::rand::RpoRandomCoin;
 use miden_protocol::account::component::AccountComponentMetadata;
 use miden_protocol::account::{
     Account,

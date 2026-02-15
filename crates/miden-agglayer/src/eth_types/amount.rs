@@ -1,7 +1,6 @@
 use core::fmt;
 
-use miden_core::FieldElement;
-use miden_protocol::Felt;
+use miden_protocol::{Felt, PrimeCharacteristicRing};
 
 // ================================================================================================
 // ETHEREUM AMOUNT ERROR
@@ -109,7 +108,7 @@ impl EthAmount {
     pub fn to_elements(&self) -> [Felt; 8] {
         let mut result = [Felt::ZERO; 8];
         for (i, &value) in self.0.iter().enumerate() {
-            result[i] = Felt::from(value);
+            result[i] = Felt::from_u32(value);
         }
         result
     }

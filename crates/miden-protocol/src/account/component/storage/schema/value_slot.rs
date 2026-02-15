@@ -1,8 +1,8 @@
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 
-use miden_core::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
-use miden_processor::DeserializationError;
+use miden_core::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
+use miden_core::serde::DeserializationError;
 
 use super::super::type_registry::SchemaRequirement;
 use super::super::{InitStorageData, StorageValueName};

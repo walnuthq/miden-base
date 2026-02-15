@@ -118,8 +118,6 @@ where
         // This maintains API compatibility with the non-fallible Smt::num_entries().
         // See issue #2010 for future improvements to error handling.
         LargeSmt::num_entries(self)
-            .map_err(large_smt_error_to_merkle_error)
-            .expect("Storage I/O error accessing num_entries")
     }
 
     fn entries(&self) -> Box<dyn Iterator<Item = (Word, Word)> + '_> {
@@ -231,5 +229,11 @@ pub(super) fn large_smt_error_to_merkle_error(err: LargeSmtError) -> MerkleError
             panic!("Storage error encountered: {:?}", storage_err)
         },
         LargeSmtError::Merkle(merkle_err) => merkle_err,
+        LargeSmtError::RootMismatch { expected, actual } => {
+            panic!("Root mismatch: expected {:?}, got {:?}", expected, actual)
+        },
+        LargeSmtError::StorageNotEmpty => {
+            panic!("Storage is not empty")
+        },
     }
 }

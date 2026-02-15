@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use anyhow::Context;
 use miden_block_prover::LocalBlockProver;
-use miden_processor::DeserializationError;
+use miden_processor::serde::DeserializationError;
 use miden_protocol::MIN_PROOF_SECURITY_LEVEL;
 use miden_protocol::account::auth::{AuthSecretKey, PublicKey};
 use miden_protocol::account::delta::AccountUpdateDetails;
@@ -32,9 +32,8 @@ use miden_protocol::transaction::{
 };
 use miden_tx::LocalTransactionProver;
 use miden_tx::auth::BasicAuthenticator;
-use miden_tx::utils::{ByteReader, Deserializable, Serializable};
+use miden_processor::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
 use miden_tx_batch_prover::LocalBatchProver;
-use winterfell::ByteWriter;
 
 use super::note::MockChainNote;
 use crate::{MockChainBuilder, TransactionContextBuilder};

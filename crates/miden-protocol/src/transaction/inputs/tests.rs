@@ -3,7 +3,7 @@ use alloc::vec;
 use std::collections::BTreeMap;
 use std::vec::Vec;
 
-use miden_core::utils::{Deserializable, Serializable};
+use miden_core::serde::{Deserializable, Serializable};
 
 use crate::account::{
     AccountCode,

@@ -41,9 +41,9 @@ use miden_protocol::{EMPTY_WORD, Felt, FieldElement, LexicographicWord, Word, ZE
 use miden_standards::code_builder::CodeBuilder;
 use miden_standards::testing::account_component::MockAccountComponent;
 use miden_tx::LocalTransactionProver;
+use miden_crypto::rand::random_word;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
-use winter_rand_utils::rand_value;
 
 use crate::utils::create_public_p2any_note;
 use crate::{Auth, MockChain, TransactionContextBuilder};
@@ -223,12 +223,12 @@ async fn storage_delta_for_value_slots() -> anyhow::Result<()> {
 async fn storage_delta_for_map_slots() -> anyhow::Result<()> {
     // Test with random keys to make sure the ordering in the MASM and Rust implementations
     // matches.
-    let key0 = rand_value::<Word>();
-    let key1 = rand_value::<Word>();
-    let key2 = rand_value::<Word>();
-    let key3 = rand_value::<Word>();
-    let key4 = rand_value::<Word>();
-    let key5 = rand_value::<Word>();
+    let key0 = random_word();
+    let key1 = random_word();
+    let key2 = random_word();
+    let key3 = random_word();
+    let key4 = random_word();
+    let key5 = random_word();
 
     let key0_init_value = EMPTY_WORD;
     let key1_init_value = EMPTY_WORD;
@@ -794,13 +794,13 @@ async fn asset_and_storage_delta() -> anyhow::Result<()> {
 async fn proven_tx_storage_maps_matches_executed_tx_for_new_account() -> anyhow::Result<()> {
     // Use two identical maps to test that they are properly handled
     // (see also https://github.com/0xMiden/miden-base/issues/2037).
-    let map0 = StorageMap::with_entries([(rand_value(), rand_value())])?;
+    let map0 = StorageMap::with_entries([(random_word(), random_word())])?;
     let map1 = map0.clone();
     let mut map2 = StorageMap::with_entries([
-        (rand_value(), rand_value()),
-        (rand_value(), rand_value()),
-        (rand_value(), rand_value()),
-        (rand_value(), rand_value()),
+        (random_word(), random_word()),
+        (random_word(), random_word()),
+        (random_word(), random_word()),
+        (random_word(), random_word()),
     ])?;
 
     let map0_slot_name = StorageSlotName::mock(1);

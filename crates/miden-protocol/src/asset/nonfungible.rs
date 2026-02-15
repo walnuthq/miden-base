@@ -5,8 +5,8 @@ use core::fmt;
 
 use super::vault::AssetVaultKey;
 use super::{AccountIdPrefix, AccountType, Asset, AssetError, Felt, Hasher, Word};
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
-use crate::{FieldElement, WORD_SIZE};
+use crate::utils::serde::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::{PrimeCharacteristicRing, WORD_SIZE};
 
 /// Position of the faucet_id inside the [`NonFungibleAsset`] word having fields in BigEndian.
 const FAUCET_ID_POS_BE: usize = 3;
@@ -48,7 +48,7 @@ impl NonFungibleAsset {
     /// The serialized size of a [`NonFungibleAsset`] in bytes.
     ///
     /// Currently represented as a word.
-    pub const SERIALIZED_SIZE: usize = Felt::ELEMENT_BYTES * WORD_SIZE;
+    pub const SERIALIZED_SIZE: usize = 8_usize * WORD_SIZE;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------

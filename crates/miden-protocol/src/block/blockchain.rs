@@ -1,8 +1,8 @@
 use alloc::collections::BTreeSet;
 
-use miden_core::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
+use miden_core::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
 use miden_crypto::merkle::mmr::{Forest, Mmr, MmrError, MmrPeaks, MmrProof, PartialMmr};
-use miden_processor::DeserializationError;
+use miden_core::serde::DeserializationError;
 
 use crate::Word;
 use crate::block::BlockNumber;
@@ -140,7 +140,8 @@ impl Blockchain {
         let mut partial_mmr = PartialMmr::from_peaks(peaks);
         for block_num in blocks.iter() {
             let leaf = self.mmr.get(block_num.as_usize())?;
-            let path = self.open_at(*block_num, checkpoint)?.merkle_path;
+            let proof = self.open_at(*block_num, checkpoint)?;
+            let path = proof.merkle_path();
 
             // SAFETY: We should be able to fill the partial MMR with data from the partial
             // blockchain without errors, otherwise it indicates the blockchain is

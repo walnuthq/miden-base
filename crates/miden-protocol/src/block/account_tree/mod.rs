@@ -8,7 +8,7 @@ use crate::account::{AccountId, AccountIdPrefix};
 use crate::crypto::merkle::MerkleError;
 use crate::crypto::merkle::smt::{MutationSet, SMT_DEPTH, Smt, SmtLeaf};
 use crate::errors::AccountTreeError;
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::serde::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 mod partial;
 pub use partial::PartialAccountTree;

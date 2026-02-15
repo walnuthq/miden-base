@@ -29,15 +29,14 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use miden_processor::{
-    AdviceMutation,
-    EventError,
-    EventHandlerRegistry,
     Felt,
-    MastForest,
     MastForestStore,
-    ProcessState,
+    ProcessorState,
+    advice::AdviceMutation,
+    event::{EventError, EventHandlerRegistry},
+    mast::MastForest,
 };
-use miden_protocol::Word;
+use miden_protocol::{PrimeCharacteristicRing, Word};
 use miden_protocol::account::{
     AccountCode,
     AccountDelta,
@@ -269,7 +268,7 @@ impl<'store, STORE> TransactionBaseHost<'store, STORE> {
     /// Returns `Some` if the event was handled, `None` otherwise.
     pub fn handle_core_lib_events(
         &self,
-        process: &ProcessState,
+        process: &ProcessorState<'_>,
     ) -> Result<Option<Vec<AdviceMutation>>, EventError> {
         let event_id = EventId::from_felt(process.get_stack_item(0));
         if let Some(mutations) = self.core_lib_handlers.handle_event(event_id, process)? {
@@ -324,7 +323,7 @@ impl<'store, STORE> TransactionBaseHost<'store, STORE> {
     ) -> Result<Vec<AdviceMutation>, TransactionKernelError> {
         let proc_idx =
             self.acct_procedure_index_map.get_proc_index(code_commitment, procedure_root)?;
-        Ok(vec![AdviceMutation::extend_stack([Felt::from(proc_idx)])])
+        Ok(vec![AdviceMutation::extend_stack([Felt::from_u8(proc_idx)])])
     }
 
     /// Handles the increment nonce event by incrementing the nonce delta by one.

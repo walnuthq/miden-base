@@ -3,8 +3,8 @@ use core::cmp::Ordering;
 use core::fmt::{self, Display};
 use core::str::FromStr;
 
-use miden_core::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
-use miden_processor::DeserializationError;
+use miden_core::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
+use miden_core::serde::DeserializationError;
 use thiserror::Error;
 
 use crate::account::StorageSlotName;

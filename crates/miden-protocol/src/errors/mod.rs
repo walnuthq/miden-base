@@ -6,11 +6,12 @@ use core::error::Error;
 use miden_assembly::Report;
 use miden_assembly::diagnostics::reporting::PrintDiagnostic;
 use miden_core::mast::MastForestError;
-use miden_core::{EventId, Felt};
+use miden_core::Felt;
+use miden_core::events::EventId;
 use miden_crypto::merkle::mmr::MmrError;
 use miden_crypto::merkle::smt::{SmtLeafError, SmtProofError};
 use miden_crypto::utils::HexParseError;
-use miden_processor::DeserializationError;
+use miden_core::serde::DeserializationError;
 use thiserror::Error;
 
 use super::account::AccountId;

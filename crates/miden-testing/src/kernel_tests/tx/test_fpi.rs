@@ -3,7 +3,8 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use miden_processor::fast::ExecutionOutput;
-use miden_processor::{AdviceInputs, Felt};
+use miden_processor::advice::AdviceInputs;
+use miden_processor::Felt;
 use miden_protocol::account::component::AccountComponentMetadata;
 use miden_protocol::account::{
     Account,

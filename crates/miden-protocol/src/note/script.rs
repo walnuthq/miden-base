@@ -1,9 +1,11 @@
+use crate::PrimeCharacteristicRing;
 use alloc::string::ToString;
+use crate::PrimeField64;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::fmt::Display;
 
-use miden_processor::MastNodeExt;
+use miden_core::mast::MastNodeExt;
 
 use super::Felt;
 use crate::assembly::mast::{ExternalNodeBuilder, MastForest, MastForestContributor, MastNodeId};
@@ -191,7 +193,7 @@ impl From<&NoteScript> for Vec<Felt> {
         let mut result = Vec::with_capacity(final_size);
 
         // Push the length, this is used to remove the padding later
-        result.push(Felt::from(u32::from(script.entrypoint)));
+        result.push(Felt::from_u32(u32::from(script.entrypoint)));
         result.push(Felt::new(len as u64));
 
         // A Felt can not represent all u64 values, so the data is encoded using u32.
@@ -232,12 +234,16 @@ impl TryFrom<&[Felt]> for NoteScript {
             return Err(DeserializationError::UnexpectedEOF);
         }
 
-        let entrypoint: u32 = elements[0].try_into().map_err(DeserializationError::InvalidValue)?;
-        let len = elements[1].as_int();
+        let entrypoint_val = elements[0].as_canonical_u64();
+        let entrypoint: u32 = u32::try_from(entrypoint_val)
+            .map_err(|_| DeserializationError::InvalidValue("entrypoint does not fit in u32".into()))?;
+        let len = elements[1].as_canonical_u64();
         let mut data = Vec::with_capacity(elements.len() * 4);
 
         for &felt in &elements[2..] {
-            let v: u32 = felt.try_into().map_err(DeserializationError::InvalidValue)?;
+            let v_val = felt.as_canonical_u64();
+            let v: u32 = u32::try_from(v_val)
+                .map_err(|_| DeserializationError::InvalidValue("felt value does not fit in u32".into()))?;
             data.extend(v.to_le_bytes())
         }
         data.shrink_to(len as usize);

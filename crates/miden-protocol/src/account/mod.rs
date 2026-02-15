@@ -1,4 +1,5 @@
 use alloc::string::ToString;
+use crate::PrimeField64;
 use alloc::vec::Vec;
 
 use crate::asset::{Asset, AssetVault};
@@ -149,7 +150,7 @@ impl Account {
     /// Creates an account's [`AccountCode`] and [`AccountStorage`] from the provided components.
     ///
     /// This merges all libraries of the components into a single
-    /// [`MastForest`](miden_processor::MastForest) to produce the [`AccountCode`].
+    /// [`MastForest`](miden_core::mast::MastForest) to produce the [`AccountCode`].
     ///
     /// The storage slots of all components are merged into a single [`AccountStorage`], where the
     /// slots are sorted by their [`StorageSlotName`].
@@ -168,7 +169,7 @@ impl Account {
     /// - The first component doesn't contain exactly one authentication procedure.
     /// - Other components contain authentication procedures.
     /// - The number of [`StorageSlot`]s of all components exceeds 255.
-    /// - [`MastForest::merge`](miden_processor::MastForest::merge) fails on all libraries.
+    /// - [`MastForest::merge`](miden_core::mast::MastForest::merge) fails on all libraries.
     pub(super) fn initialize_from_components(
         account_type: AccountType,
         components: Vec<AccountComponent>,
@@ -351,7 +352,7 @@ impl Account {
     pub fn increment_nonce(&mut self, nonce_delta: Felt) -> Result<(), AccountError> {
         let new_nonce = self.nonce + nonce_delta;
 
-        if new_nonce.as_int() < self.nonce.as_int() {
+        if new_nonce.as_canonical_u64() < self.nonce.as_canonical_u64() {
             return Err(AccountError::NonceOverflow {
                 current: self.nonce,
                 increment: nonce_delta,
@@ -571,8 +572,8 @@ mod tests {
 
     use assert_matches::assert_matches;
     use miden_assembly::Assembler;
-    use miden_core::FieldElement;
-    use miden_crypto::utils::{Deserializable, Serializable};
+    use miden_core::field::PrimeCharacteristicRing;
+    use miden_core::serde::{Deserializable, Serializable};
     use miden_crypto::{Felt, Word};
 
     use super::{

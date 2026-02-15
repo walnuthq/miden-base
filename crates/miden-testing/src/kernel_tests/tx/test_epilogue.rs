@@ -2,7 +2,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use std::borrow::ToOwned;
 
-use miden_processor::crypto::RpoRandomCoin;
+use miden_protocol::crypto::rand::RpoRandomCoin;
 use miden_processor::{Felt, ONE};
 use miden_protocol::Word;
 use miden_protocol::account::{Account, AccountDelta, AccountStorageDelta, AccountVaultDelta};

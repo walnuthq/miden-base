@@ -1,3 +1,4 @@
+use crate::PrimeCharacteristicRing;
 use core::fmt;
 
 use miden_crypto::Felt;
@@ -145,7 +146,7 @@ impl From<NoteTag> for u32 {
 
 impl From<NoteTag> for Felt {
     fn from(tag: NoteTag) -> Self {
-        Felt::from(tag.as_u32())
+        Felt::from_u32(tag.as_u32())
     }
 }
 

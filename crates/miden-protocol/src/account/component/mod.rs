@@ -223,7 +223,7 @@ mod tests {
     use alloc::sync::Arc;
 
     use miden_assembly::Assembler;
-    use miden_core::utils::Serializable;
+    use miden_core::serde::Serializable;
     use miden_mast_package::{
         MastArtifact,
         Package,

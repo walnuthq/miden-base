@@ -52,17 +52,17 @@ miden-tx              = { default-features = false, path = "crates/miden-tx", ve
 miden-tx-batch-prover = { default-features = false, path = "crates/miden-tx-batch-prover", version = "0.14" }
 
 # Miden dependencies
-miden-air             = { default-features = false, version = "0.20" }
-miden-assembly        = { default-features = false, version = "0.20" }
-miden-assembly-syntax = { default-features = false, version = "0.20" }
-miden-core            = { default-features = false, version = "0.20" }
-miden-core-lib        = { default-features = false, version = "0.20" }
-miden-crypto          = { default-features = false, version = "0.19" }
-miden-mast-package    = { default-features = false, version = "0.20" }
-miden-processor       = { default-features = false, version = "0.20" }
-miden-prover          = { default-features = false, version = "0.20" }
-miden-utils-sync      = { default-features = false, version = "0.20" }
-miden-verifier        = { default-features = false, version = "0.20" }
+miden-air             = { default-features = false, version = "0.21" }
+miden-assembly        = { default-features = false, version = "0.21" }
+miden-assembly-syntax = { default-features = false, version = "0.21" }
+miden-core            = { default-features = false, version = "0.21" }
+miden-core-lib        = { default-features = false, version = "0.21" }
+miden-crypto          = { default-features = false, version = "0.22" }
+miden-mast-package    = { default-features = false, version = "0.21" }
+miden-processor       = { default-features = false, version = "0.21" }
+miden-prover          = { default-features = false, version = "0.21" }
+miden-utils-sync      = { default-features = false, version = "0.21" }
+miden-verifier        = { default-features = false, version = "0.21" }
 
 # External dependencies
 anyhow          = { default-features = false, features = ["backtrace", "std"], version = "1.0" }
@@ -75,3 +75,15 @@ rstest          = { version = "0.26" }
 serde           = { default-features = false, version = "1.0" }
 thiserror       = { default-features = false, version = "2.0" }
 tokio           = { default-features = false, features = ["sync"], version = "1" }
+
+[patch.crates-io]
+miden-air = { path = "../miden-vm/air" }
+miden-assembly = { path = "../miden-vm/crates/assembly" }
+miden-assembly-syntax = { path = "../miden-vm/crates/assembly-syntax" }
+miden-core = { path = "../miden-vm/core" }
+miden-core-lib = { path = "../miden-vm/crates/lib/core" }
+miden-mast-package = { path = "../miden-vm/crates/mast-package" }
+miden-processor = { path = "../miden-vm/processor" }
+miden-prover = { path = "../miden-vm/prover" }
+miden-utils-sync = { path = "../miden-vm/crates/utils-sync" }
+miden-verifier = { path = "../miden-vm/verifier" }

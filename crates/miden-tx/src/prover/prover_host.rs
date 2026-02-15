@@ -2,13 +2,13 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use miden_processor::{
-    AdviceMutation,
-    BaseHost,
-    EventError,
-    MastForest,
+    FutureMaybeSend,
+    Host,
     MastForestStore,
-    ProcessState,
-    SyncHost,
+    ProcessorState,
+    advice::AdviceMutation,
+    event::EventError,
+    mast::MastForest,
 };
 use miden_protocol::Word;
 use miden_protocol::account::{AccountDelta, PartialAccount};
@@ -67,9 +67,9 @@ where
 // HOST IMPLEMENTATION
 // ================================================================================================
 
-impl<STORE> BaseHost for TransactionProverHost<'_, STORE>
+impl<STORE> Host for TransactionProverHost<'_, STORE>
 where
-    STORE: MastForestStore,
+    STORE: MastForestStore + Sync,
 {
     fn get_label_and_source_file(
         &self,
@@ -80,17 +80,14 @@ where
         // is only used to improve error message quality which we shouldn't run into here.
         (SourceSpan::UNKNOWN, None)
     }
-}
 
-impl<STORE> SyncHost for TransactionProverHost<'_, STORE>
-where
-    STORE: MastForestStore,
-{
-    fn get_mast_forest(&self, node_digest: &Word) -> Option<Arc<MastForest>> {
-        self.base_host.get_mast_forest(node_digest)
+    fn get_mast_forest(&self, node_digest: &Word) -> impl FutureMaybeSend<Option<Arc<MastForest>>> {
+        let mast_forest = self.base_host.get_mast_forest(node_digest);
+        async move { mast_forest }
     }
 
-    fn on_event(&mut self, process: &ProcessState) -> Result<Vec<AdviceMutation>, EventError> {
+    fn on_event(&mut self, process: &ProcessorState<'_>) -> impl FutureMaybeSend<Result<Vec<AdviceMutation>, EventError>> {
+        async move {
         if let Some(advice_mutations) = self.base_host.handle_core_lib_events(process)? {
             return Ok(advice_mutations);
         }
@@ -193,5 +190,6 @@ where
         };
 
         result.map_err(EventError::from)
+        }
     }
 }

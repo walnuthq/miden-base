@@ -99,7 +99,7 @@ impl Deserializable for AccountFile {
 
 #[cfg(test)]
 mod tests {
-    use miden_crypto::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
     use storage::AccountStorage;
     #[cfg(feature = "std")]
     use tempfile::tempdir;
@@ -119,8 +119,8 @@ mod tests {
         let storage = AccountStorage::new(vec![]).unwrap();
         let nonce = Felt::new(1);
         let account = Account::new_existing(id, vault, storage, code, nonce);
-        let auth_secret_key = AuthSecretKey::new_falcon512_rpo();
-        let auth_secret_key_2 = AuthSecretKey::new_falcon512_rpo();
+        let auth_secret_key = AuthSecretKey::new_falcon512_poseidon2();
+        let auth_secret_key_2 = AuthSecretKey::new_falcon512_poseidon2();
 
         AccountFile::new(account, vec![auth_secret_key, auth_secret_key_2])
     }

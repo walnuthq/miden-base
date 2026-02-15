@@ -187,7 +187,7 @@ impl From<&Account> for AccountHeader {
 }
 
 impl Serializable for AccountHeader {
-    fn write_into<W: miden_core::utils::ByteWriter>(&self, target: &mut W) {
+    fn write_into<W: miden_core::serde::ByteWriter>(&self, target: &mut W) {
         self.id.write_into(target);
         self.nonce.write_into(target);
         self.vault_root.write_into(target);
@@ -197,9 +197,9 @@ impl Serializable for AccountHeader {
 }
 
 impl Deserializable for AccountHeader {
-    fn read_from<R: miden_core::utils::ByteReader>(
+    fn read_from<R: miden_core::serde::ByteReader>(
         source: &mut R,
-    ) -> Result<Self, miden_processor::DeserializationError> {
+    ) -> Result<Self, miden_core::serde::DeserializationError> {
         let id = AccountId::read_from(source)?;
         let nonce = Felt::read_from(source)?;
         let vault_root = Word::read_from(source)?;
@@ -230,7 +230,7 @@ fn parse_word(data: &[Felt], offset: MemoryOffset) -> Result<Word, WordError> {
 #[cfg(test)]
 mod tests {
     use miden_core::Felt;
-    use miden_core::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
 
     use super::AccountHeader;
     use crate::Word;

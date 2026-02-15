@@ -17,25 +17,25 @@ use miden_protocol::utils::sync::LazyLock;
 use crate::account::components::falcon_512_rpo_multisig_library;
 
 /// The schema type ID for Falcon512Rpo public keys.
-const PUB_KEY_TYPE_ID: &str = "miden::standards::auth::falcon512_rpo::pub_key";
+const PUB_KEY_TYPE_ID: &str = "miden::standards::auth::falcon512_poseidon2::pub_key";
 
 static THRESHOLD_CONFIG_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo_multisig::threshold_config")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2_multisig::threshold_config")
         .expect("storage slot name should be valid")
 });
 
 static APPROVER_PUBKEYS_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo_multisig::approver_public_keys")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2_multisig::approver_public_keys")
         .expect("storage slot name should be valid")
 });
 
 static EXECUTED_TRANSACTIONS_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo_multisig::executed_transactions")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2_multisig::executed_transactions")
         .expect("storage slot name should be valid")
 });
 
 static PROCEDURE_THRESHOLDS_SLOT_NAME: LazyLock<StorageSlotName> = LazyLock::new(|| {
-    StorageSlotName::new("miden::standards::auth::falcon512_rpo_multisig::procedure_thresholds")
+    StorageSlotName::new("miden::standards::auth::falcon512_poseidon2_multisig::procedure_thresholds")
         .expect("storage slot name should be valid")
 });
 
@@ -135,7 +135,7 @@ pub struct AuthFalcon512RpoMultisig {
 
 impl AuthFalcon512RpoMultisig {
     /// The name of the component.
-    pub const NAME: &'static str = "miden::auth::falcon512_rpo_multisig";
+    pub const NAME: &'static str = "miden::auth::falcon512_poseidon2_multisig";
 
     /// Creates a new [`AuthFalcon512RpoMultisig`] component from the provided configuration.
     pub fn new(config: AuthFalcon512RpoMultisigConfig) -> Result<Self, AccountError> {

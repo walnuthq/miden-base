@@ -2,9 +2,9 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::{String, ToString};
 use core::str::FromStr;
 
-use miden_core::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
+use miden_core::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
 use miden_mast_package::{Package, SectionId};
-use miden_processor::DeserializationError;
+use miden_core::serde::DeserializationError;
 use semver::Version;
 
 use super::{AccountType, SchemaRequirement, StorageSchema, StorageValueName};

@@ -16,7 +16,7 @@ use miden_protocol::note::{
     NoteType,
 };
 use miden_protocol::utils::sync::LazyLock;
-use miden_protocol::{Felt, MAX_NOTE_STORAGE_ITEMS, Word};
+use miden_protocol::{Felt, MAX_NOTE_STORAGE_ITEMS, PrimeCharacteristicRing, Word};
 
 use crate::StandardsLib;
 
@@ -202,8 +202,8 @@ impl From<MintNoteStorage> for NoteStorage {
                 tag,
                 attachment,
             } => {
-                let attachment_scheme = Felt::from(attachment.attachment_scheme().as_u32());
-                let attachment_kind = Felt::from(attachment.attachment_kind().as_u8());
+                let attachment_scheme = Felt::from_u32(attachment.attachment_scheme().as_u32());
+                let attachment_kind = Felt::from_u8(attachment.attachment_kind().as_u8());
                 let attachment = attachment.content().to_word();
 
                 let mut storage_values = Vec::with_capacity(12);
@@ -219,8 +219,8 @@ impl From<MintNoteStorage> for NoteStorage {
                     .expect("number of storage items should not exceed max storage items")
             },
             MintNoteStorage::Public { recipient, amount, tag, attachment } => {
-                let attachment_scheme = Felt::from(attachment.attachment_scheme().as_u32());
-                let attachment_kind = Felt::from(attachment.attachment_kind().as_u8());
+                let attachment_scheme = Felt::from_u32(attachment.attachment_scheme().as_u32());
+                let attachment_kind = Felt::from_u8(attachment.attachment_kind().as_u8());
                 let attachment = attachment.content().to_word();
 
                 let mut storage_values = vec![tag, amount, attachment_kind, attachment_scheme];

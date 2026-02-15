@@ -1,7 +1,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use miden_processor::crypto::RpoRandomCoin;
+use miden_protocol::crypto::rand::RpoRandomCoin;
 use miden_protocol::account::AccountId;
 use miden_protocol::asset::Asset;
 use miden_protocol::crypto::rand::FeltRng;

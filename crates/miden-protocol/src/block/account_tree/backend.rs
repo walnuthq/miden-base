@@ -1,3 +1,4 @@
+use crate::QuotientMap;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
@@ -129,9 +130,9 @@ where
     type Error = MerkleError;
 
     fn num_leaves(&self) -> usize {
-        // LargeSmt::num_leaves returns Result<usize, LargeSmtError>
-        // We'll unwrap or return 0 on error
-        LargeSmt::num_leaves(self).map_err(large_smt_error_to_merkle_error).unwrap_or(0)
+        // LargeSmt::num_leaves returns usize directly
+        
+        LargeSmt::num_leaves(self)
     }
 
     fn leaves<'a>(&'a self) -> Box<dyn 'a + Iterator<Item = (LeafIndex<SMT_DEPTH>, SmtLeaf)>> {
@@ -216,7 +217,7 @@ impl AccountTree<Smt> {
             // the leaf_idx is a valid Felt as well as a valid account ID prefix.
             AccountTreeError::DuplicateStateCommitments {
                 prefix: AccountIdPrefix::new_unchecked(
-                    crate::Felt::try_from(leaf_idx).expect("leaf index should be a valid felt"),
+                    crate::Felt::from_canonical_checked(leaf_idx).expect("leaf index should be a valid felt"),
                 ),
             }
         })?;
@@ -235,5 +236,11 @@ fn large_smt_error_to_merkle_error(err: LargeSmtError) -> MerkleError {
             panic!("Storage error encountered: {:?}", storage_err)
         },
         LargeSmtError::Merkle(merkle_err) => merkle_err,
+        LargeSmtError::RootMismatch { expected, actual } => {
+            panic!("Root mismatch: expected {:?}, got {:?}", expected, actual)
+        },
+        LargeSmtError::StorageNotEmpty => {
+            panic!("Storage is not empty")
+        },
     }
 }

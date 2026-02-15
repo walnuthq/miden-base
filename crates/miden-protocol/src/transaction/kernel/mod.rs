@@ -1,4 +1,5 @@
 use alloc::string::ToString;
+use crate::PrimeField64;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
@@ -187,7 +188,7 @@ impl TransactionKernel {
         inputs.extend(input_notes_commitment);
         inputs.extend_from_slice(initial_account_commitment.as_elements());
         inputs.extend_from_slice(block_commitment.as_elements());
-        StackInputs::new(inputs)
+        StackInputs::new(&inputs)
             .map_err(|e| e.to_string())
             .expect("Invalid stack input")
     }
@@ -225,7 +226,7 @@ impl TransactionKernel {
         outputs.extend(account_update_commitment);
         outputs.extend(output_notes_commitment);
         outputs.reverse();
-        StackOutputs::new(outputs)
+        StackOutputs::new(&outputs)
             .map_err(|e| e.to_string())
             .expect("Invalid stack output")
     }
@@ -261,22 +262,22 @@ impl TransactionKernel {
         stack: &StackOutputs, // FIXME TODO add an extension trait for this one
     ) -> Result<(Word, Word, FungibleAsset, BlockNumber), TransactionOutputError> {
         let output_notes_commitment = stack
-            .get_stack_word_be(TransactionOutputs::OUTPUT_NOTES_COMMITMENT_WORD_IDX * 4)
+            .get_word(TransactionOutputs::OUTPUT_NOTES_COMMITMENT_WORD_IDX * 4)
             .expect("output_notes_commitment (first word) missing");
 
         let account_update_commitment = stack
-            .get_stack_word_be(TransactionOutputs::ACCOUNT_UPDATE_COMMITMENT_WORD_IDX * 4)
+            .get_word(TransactionOutputs::ACCOUNT_UPDATE_COMMITMENT_WORD_IDX * 4)
             .expect("account_update_commitment (second word) missing");
 
         let fee = stack
-            .get_stack_word_be(TransactionOutputs::FEE_ASSET_WORD_IDX * 4)
+            .get_word(TransactionOutputs::FEE_ASSET_WORD_IDX * 4)
             .expect("fee_asset (third word) missing");
 
         let expiration_block_num = stack
-            .get_stack_item(TransactionOutputs::EXPIRATION_BLOCK_ELEMENT_IDX)
+            .get_element(TransactionOutputs::EXPIRATION_BLOCK_ELEMENT_IDX)
             .expect("tx_expiration_block_num (element on index 12) missing");
 
-        let expiration_block_num = u32::try_from(expiration_block_num.as_int())
+        let expiration_block_num = u32::try_from(expiration_block_num.as_canonical_u64())
             .map_err(|_| {
                 TransactionOutputError::OutputStackInvalid(
                     "expiration block number should be smaller than u32::MAX".into(),
@@ -286,7 +287,7 @@ impl TransactionKernel {
 
         // Make sure that indices 13, 14 and 15 are zeroes (i.e. the fourth word without the
         // expiration block number).
-        if stack.get_stack_word_be(12).expect("fourth word missing").as_elements()[..3]
+        if stack.get_word(12).expect("fourth word missing").as_elements()[..3]
             != Word::empty().as_elements()[..3]
         {
             return Err(TransactionOutputError::OutputStackInvalid(

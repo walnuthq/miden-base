@@ -17,7 +17,7 @@ use crate::transaction::{
     ProvenTransaction,
     TransactionHeader,
 };
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::serde::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use crate::{MAX_ACCOUNTS_PER_BATCH, MAX_INPUT_NOTES_PER_BATCH, MAX_OUTPUT_NOTES_PER_BATCH};
 
 /// A proposed batch of transactions with all necessary data to validate it.
@@ -426,8 +426,8 @@ impl Deserializable for ProposedBatch {
 mod tests {
     use anyhow::Context;
     use miden_crypto::merkle::mmr::{Mmr, PartialMmr};
+    use miden_crypto::rand::random_word;
     use miden_verifier::ExecutionProof;
-    use winter_rand_utils::rand_value;
 
     use super::*;
     use crate::Word;
@@ -447,8 +447,8 @@ mod tests {
         let partial_blockchain = PartialBlockchain::new(partial_mmr, Vec::new()).unwrap();
 
         let chain_commitment = partial_blockchain.peaks().hash_peaks();
-        let note_root = rand_value::<Word>();
-        let tx_kernel_commitment = rand_value::<Word>();
+        let note_root = random_word();
+        let tx_kernel_commitment = random_word();
         let reference_block_header = BlockHeader::mock(
             3,
             Some(chain_commitment),

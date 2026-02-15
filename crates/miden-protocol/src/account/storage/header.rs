@@ -15,7 +15,7 @@ use crate::utils::serde::{
     DeserializationError,
     Serializable,
 };
-use crate::{FieldElement, ZERO};
+use crate::{PrimeCharacteristicRing, ZERO};
 
 // ACCOUNT STORAGE HEADER
 // ================================================================================================
@@ -233,7 +233,7 @@ impl Serializable for AccountStorageHeader {
 impl Deserializable for AccountStorageHeader {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let len = source.read_u8()?;
-        let slots: Vec<StorageSlotHeader> = source.read_many(len as usize)?;
+        let slots: Vec<StorageSlotHeader> = source.read_many_iter(len as usize)?.collect::<Result<Vec<_>, _>>()?;
         Self::new(slots).map_err(|err| DeserializationError::InvalidValue(err.to_string()))
     }
 }
@@ -351,7 +351,7 @@ mod tests {
     use alloc::string::ToString;
 
     use miden_core::Felt;
-    use miden_core::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
 
     use super::AccountStorageHeader;
     use crate::Word;

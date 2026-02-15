@@ -8,7 +8,7 @@ use $kernel::constants::STORAGE_SLOT_TYPE_VALUE
 use $kernel::memory
 use miden::core::collections::smt
 use miden::core::collections::sorted_array
-use miden::core::crypto::hashes::rpo256
+use miden::core::crypto::hashes::poseidon2
 use miden::core::mem
 use miden::core::word
 
@@ -308,12 +308,12 @@ pub proc compute_commitment
 
     # stream account data and compute sequential hash. We perform two `mem_stream` operations
     # because the account data consists of exactly 4 words.
-    mem_stream exec.rpo256::permute
-    mem_stream exec.rpo256::permute
+    mem_stream exec.poseidon2::permute
+    mem_stream exec.poseidon2::permute
     # => [RATE, RATE, PERM, account_data_ptr']
 
     # extract account commitment
-    exec.rpo256::squeeze_digest
+    exec.poseidon2::squeeze_digest
     # => [ACCOUNT_COMMITMENT, account_data_ptr']
 
     # drop account_data_ptr
@@ -867,7 +867,7 @@ pub proc validate_seed
 
     # perform first permutation of seed and code_commitment (from advice stack)
     # perm(seed, code_commitment)
-    exec.rpo256::permute
+    exec.poseidon2::permute
     # => [RATE, RATE, PERM, EMPTY_WORD]
 
     # clear rate elements
@@ -878,11 +878,11 @@ pub proc validate_seed
     swapw exec.memory::get_account_storage_commitment swapw
     # => [EMPTY_WORD, STORAGE_COMMITMENT, PERM]
 
-    exec.rpo256::permute
+    exec.poseidon2::permute
     # => [RATE, RATE, CAP]
 
     # extract digest
-    exec.rpo256::squeeze_digest
+    exec.poseidon2::squeeze_digest
     # => [DIGEST]
 
     # Shape suffix to set the lower 8 bits to zero and compare the computed and provided ID.
@@ -1145,7 +1145,7 @@ pub proc save_account_storage_data
     # AS => []
 
     # extract the digest
-    exec.rpo256::squeeze_digest
+    exec.poseidon2::squeeze_digest
     # OS => [DIGEST, end_ptr', STORAGE_COMMITMENT]
 
     # drop end_ptr
@@ -1219,7 +1219,7 @@ pub proc save_account_procedure_data
     # AS => []
 
     # extract the digest
-    exec.rpo256::squeeze_digest
+    exec.poseidon2::squeeze_digest
     # OS => [DIGEST, end_ptr', CODE_COMMITMENT]
 
     # drop end_ptr
@@ -1805,7 +1805,7 @@ end
 #! Inputs:  [KEY]
 #! Outputs: [HASHED_KEY]
 proc hash_map_key
-    exec.rpo256::hash
+    exec.poseidon2::hash
     # => [HASHED_KEY]
 end
 
@@ -1843,11 +1843,11 @@ proc refresh_storage_commitment
         # => [PAD, PAD, PAD, start_ptr, end_ptr]
 
         # hash elements from memory
-        exec.rpo256::absorb_double_words_from_memory
+        exec.poseidon2::absorb_double_words_from_memory
         # => [PERM, PERM, PERM, start_ptr, end_ptr]
 
         # extract the digest
-        exec.rpo256::squeeze_digest
+        exec.poseidon2::squeeze_digest
         # => [DIGEST, end_ptr, end_ptr]
 
         # clean stack

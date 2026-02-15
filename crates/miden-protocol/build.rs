@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use fs_err as fs;
+use miden_core::field::PrimeField64;
 use miden_assembly::diagnostics::{IntoDiagnostic, Result, WrapErr, miette};
 use miden_assembly::{Assembler, DefaultSourceManager, KernelLibrary, Library};
 use regex::Regex;
@@ -75,6 +76,10 @@ fn main() -> Result<()> {
 
     // copy the shared modules to the kernel and protocol library folders
     copy_shared_modules(&source_dir)?;
+
+    // Remove macOS resource fork files (._*) that may have been created during
+    // copy operations on filesystems without extended attribute support.
+    shared::remove_resource_forks(&source_dir);
 
     // set target directory to {OUT_DIR}/assets
     let target_dir = Path::new(&build_dir).join(ASSETS_DIR);
@@ -512,7 +517,7 @@ fn generate_event_file_content(
     // want to error out as early as possible:
     // TODO: make the error out at build-time to be able to present better error hints
     for (event_path, event_name) in events {
-        let value = miden_core::EventId::from_name(event_path).as_felt().as_int();
+        let value = miden_core::events::EventId::from_name(event_path).as_felt().as_canonical_u64();
         debug_assert!(!event_name.is_empty());
         writeln!(&mut output, "const {}: u64 = {};", event_name, value)?;
     }
@@ -599,6 +604,11 @@ mod shared {
                     }
                     todo.push(src_dir);
                 } else {
+                    // Skip macOS resource fork files (._*) that appear on
+                    // filesystems without native extended attribute support.
+                    if path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("._")) {
+                        continue;
+                    }
                     let dst_file = dst.join(path.strip_prefix(&prefix).unwrap());
                     fs::copy(&path, dst_file).unwrap();
                 }
@@ -636,6 +646,11 @@ mod shared {
     /// # Errors
     /// Returns an error if the path could not be converted to a UTF-8 string.
     pub fn is_masm_file(path: &Path) -> io::Result<bool> {
+        // Skip macOS resource fork files (._*) that appear on filesystems
+        // without native extended attribute support (e.g. exFAT).
+        if path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("._")) {
+            return Ok(false);
+        }
         if let Some(extension) = path.extension() {
             let extension = extension
                 .to_str()
@@ -644,6 +659,25 @@ mod shared {
             Ok(extension == "masm")
         } else {
             Ok(false)
+        }
+    }
+
+    /// Recursively removes macOS resource fork files (`._*`) from the given directory.
+    ///
+    /// These files are created on filesystems without extended attribute support (e.g. exFAT)
+    /// as a side effect of `fs::copy` and would otherwise cause the assembler to fail when
+    /// walking directories for `.masm` source files.
+    pub fn remove_resource_forks(dir: &Path) {
+        for entry in WalkDir::new(dir) {
+            let Ok(entry) = entry else { continue };
+            let path = entry.path();
+            if path.is_file()
+                && path
+                    .file_name()
+                    .is_some_and(|n| n.to_string_lossy().starts_with("._"))
+            {
+                let _ = std::fs::remove_file(path);
+            }
         }
     }
 

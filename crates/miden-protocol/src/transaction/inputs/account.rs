@@ -3,7 +3,7 @@ use crate::account::{AccountCode, AccountId, PartialAccount, PartialStorage};
 use crate::asset::PartialVault;
 use crate::block::account_tree::AccountWitness;
 use crate::crypto::merkle::smt::{SmtProof, SmtProofError};
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::serde::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 // ACCOUNT INPUTS
 // ================================================================================================
@@ -97,9 +97,9 @@ mod tests {
     use alloc::vec::Vec;
 
     use miden_core::Felt;
-    use miden_core::utils::{Deserializable, Serializable};
+    use miden_core::serde::{Deserializable, Serializable};
     use miden_crypto::merkle::SparseMerklePath;
-    use miden_processor::SMT_DEPTH;
+    use miden_crypto::merkle::smt::SMT_DEPTH;
 
     use crate::account::{Account, AccountCode, AccountId, AccountStorage, PartialAccount};
     use crate::asset::AssetVault;

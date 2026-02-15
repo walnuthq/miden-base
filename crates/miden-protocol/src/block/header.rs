@@ -12,7 +12,7 @@ use crate::utils::serde::{
     DeserializationError,
     Serializable,
 };
-use crate::{Felt, Hasher, Word, ZERO};
+use crate::{Felt, Hasher, PrimeCharacteristicRing, Word, ZERO};
 
 // BLOCK HEADER
 // ================================================================================================
@@ -241,11 +241,11 @@ impl BlockHeader {
         elements.extend_from_slice(tx_commitment.as_elements());
         elements.extend_from_slice(tx_kernel_commitment.as_elements());
         elements.extend(validator_key.to_commitment());
-        elements.extend([block_num.into(), version.into(), timestamp.into(), ZERO]);
+        elements.extend([block_num.into(), Felt::from_u32(version), Felt::from_u32(timestamp), ZERO]);
         elements.extend([
             fee_parameters.native_asset_id().suffix(),
             fee_parameters.native_asset_id().prefix().as_felt(),
-            fee_parameters.verification_base_fee().into(),
+            Felt::from_u32(fee_parameters.verification_base_fee()),
             ZERO,
         ]);
         elements.extend([ZERO, ZERO, ZERO, ZERO]);
@@ -400,16 +400,16 @@ impl Deserializable for FeeParameters {
 mod tests {
     use assert_matches::assert_matches;
     use miden_core::Word;
-    use winter_rand_utils::rand_value;
+    use miden_crypto::rand::random_word;
 
     use super::*;
     use crate::testing::account_id::ACCOUNT_ID_PUBLIC_NON_FUNGIBLE_FAUCET;
 
     #[test]
     fn test_serde() {
-        let chain_commitment = rand_value::<Word>();
-        let note_root = rand_value::<Word>();
-        let tx_kernel_commitment = rand_value::<Word>();
+        let chain_commitment = random_word();
+        let note_root = random_word();
+        let tx_kernel_commitment = random_word();
         let header = BlockHeader::mock(
             0,
             Some(chain_commitment),

@@ -5,7 +5,7 @@ use miden_protocol::account::{
     AccountVaultDelta,
     PartialAccount,
 };
-use miden_protocol::{Felt, FieldElement, ZERO};
+use miden_protocol::{Felt, PrimeCharacteristicRing, ZERO};
 
 use crate::host::storage_delta_tracker::StorageDeltaTracker;
 

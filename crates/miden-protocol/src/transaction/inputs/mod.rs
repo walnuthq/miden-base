@@ -2,7 +2,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use miden_core::utils::{Deserializable, Serializable};
+use miden_core::serde::{Deserializable, Serializable};
 use miden_crypto::merkle::smt::{LeafIndex, SmtLeaf, SmtProof};
 use miden_crypto::merkle::{MerkleError, NodeIndex};
 
@@ -35,7 +35,8 @@ mod account;
 pub use account::AccountInputs;
 
 mod notes;
-use miden_processor::{AdviceInputs, SMT_DEPTH};
+use miden_crypto::merkle::smt::SMT_DEPTH;
+use miden_processor::advice::AdviceInputs;
 pub use notes::{InputNote, InputNotes, ToInputNoteCommitments};
 
 // TRANSACTION INPUTS
@@ -119,7 +120,7 @@ impl TransactionInputs {
             let smt_proof = SmtProof::from(witness);
             self.advice_inputs
                 .map
-                .extend([(smt_proof.leaf().hash(), smt_proof.leaf().to_elements())]);
+                .extend([(smt_proof.leaf().hash(), smt_proof.leaf().to_elements().collect::<alloc::vec::Vec<_>>())]);
         }
 
         self
@@ -487,7 +488,7 @@ impl TransactionInputs {
 // ================================================================================================
 
 impl Serializable for TransactionInputs {
-    fn write_into<W: miden_core::utils::ByteWriter>(&self, target: &mut W) {
+    fn write_into<W: miden_core::serde::ByteWriter>(&self, target: &mut W) {
         self.account.write_into(target);
         self.block_header.write_into(target);
         self.blockchain.write_into(target);
@@ -500,9 +501,9 @@ impl Serializable for TransactionInputs {
 }
 
 impl Deserializable for TransactionInputs {
-    fn read_from<R: miden_core::utils::ByteReader>(
+    fn read_from<R: miden_core::serde::ByteReader>(
         source: &mut R,
-    ) -> Result<Self, miden_core::utils::DeserializationError> {
+    ) -> Result<Self, miden_core::serde::DeserializationError> {
         let account = PartialAccount::read_from(source)?;
         let block_header = BlockHeader::read_from(source)?;
         let blockchain = PartialBlockchain::read_from(source)?;

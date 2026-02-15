@@ -1,7 +1,8 @@
+use crate::PrimeField64;
 use core::fmt;
 
 use miden_crypto::merkle::smt::LeafIndex;
-use miden_processor::SMT_DEPTH;
+use miden_crypto::merkle::smt::SMT_DEPTH;
 
 use crate::Word;
 use crate::account::AccountType::FungibleFaucet;
@@ -89,7 +90,7 @@ impl AssetVaultKey {
 
     /// Returns `true` if the asset key is for a fungible asset, `false` otherwise.
     fn is_fungible(&self) -> bool {
-        self.0[0].as_int() == 0 && self.0[1].as_int() == 0
+        self.0[0].as_canonical_u64() == 0 && self.0[1].as_canonical_u64() == 0
     }
 }
 
@@ -132,6 +133,7 @@ impl From<NonFungibleAsset> for AssetVaultKey {
 #[cfg(test)]
 mod tests {
     use miden_core::Felt;
+use crate::PrimeField64;
 
     use super::*;
     use crate::account::{AccountIdVersion, AccountStorageMode, AccountType};
