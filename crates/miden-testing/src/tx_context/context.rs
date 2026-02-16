@@ -223,6 +223,33 @@ impl TransactionContext {
         tx_executor.execute_transaction(account_id, block_num, notes, tx_args).await
     }
 
+    /// Starts a DAP debug server for this transaction and blocks until a client connects
+    /// and the execution completes.
+    ///
+    /// By default the server listens on `127.0.0.1:4711`. Connect the TUI debugger from
+    /// another terminal with `--dap-connect 127.0.0.1:4711`.
+    ///
+    /// Requires the `dap` feature to be enabled.
+    #[cfg(feature = "dap")]
+    pub async fn open_dap_debugger(self) -> Result<ExecutedTransaction, TransactionExecutorError> {
+        miden_debug::DapConfig::set_global(miden_debug::DapConfig::default());
+
+        let account_id = self.account().id();
+        let block_num = self.tx_inputs().block_header().block_num();
+        let notes = self.tx_inputs().input_notes().clone();
+        let tx_args = self.tx_args().clone();
+
+        let mut tx_executor = TransactionExecutor::new(&self)
+            .with_source_manager(self.source_manager.clone())
+            .with_executor_factory::<miden_debug::DapExecutorFactory>();
+
+        if let Some(authenticator) = self.authenticator() {
+            tx_executor = tx_executor.with_authenticator(authenticator);
+        }
+
+        tx_executor.execute_transaction(account_id, block_num, notes, tx_args).await
+    }
+
     /// Opens the interactive TUI debugger for this transaction.
     ///
     /// This works by:

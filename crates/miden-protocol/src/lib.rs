@@ -75,6 +75,9 @@ pub mod utils {
             Serializable,
         };
     }
+
+    // Re-export serde types at this level for backward compatibility
+    pub use self::serde::*;
 }
 
 pub mod vm {
