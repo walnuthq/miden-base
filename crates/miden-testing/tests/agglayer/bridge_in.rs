@@ -2,7 +2,6 @@ extern crate alloc;
 
 use miden_agglayer::{
     ClaimNoteStorage,
-    EthAddressFormat,
     OutputNoteData,
     UpdateGerNote,
     create_claim_note,
@@ -19,19 +18,35 @@ use miden_standards::account::wallets::BasicWallet;
 use miden_testing::{AccountState, Auth, MockChain};
 use rand::Rng;
 
-use super::test_utils::real_claim_data;
+use super::test_utils::{local_claim_data, real_claim_data};
 
-/// Tests the bridge-in flow using real claim data: CLAIM note -> Aggfaucet (FPI to Bridge) -> P2ID
-/// note created.
+/// Identifies the source of claim data used in the bridge-in test.
+#[derive(Debug, Clone, Copy)]
+enum ClaimDataSource {
+    /// Real on-chain claimAsset data from claim_asset_vectors_real_tx.json.json.
+    Real,
+    /// Locally simulated bridgeAsset data from claim_asset_vectors_local_tx.json.
+    Simulated,
+}
+
+/// Tests the bridge-in flow: CLAIM note -> Aggfaucet (FPI to Bridge) -> P2ID note created.
 ///
-/// This test uses real ProofData and LeafData deserialized from claim_asset_vectors.json.
-/// The claim note is processed against the agglayer faucet, which validates the Merkle proof
-/// and creates a P2ID note for the destination address.
+/// Parameterized over two claim data sources:
+/// - [`ClaimDataSource::Real`]: uses real [`ProofData`] and [`LeafData`] from
+///   `claim_asset_vectors_real_tx.json`, captured from an actual on-chain `claimAsset` transaction.
+/// - [`ClaimDataSource::Simulated`]: uses locally generated [`ProofData`] and [`LeafData`] from
+///   `claim_asset_vectors_local_tx.json`, produced by simulating a `bridgeAsset()` call.
 ///
-/// Note: Modifying anything in the test vectors would invalidate the Merkle proof,
-/// as the proof was computed for the original leaf_data including the original destination.
+/// In both cases the claim note is processed against the agglayer faucet, which validates the
+/// Merkle proof and creates a P2ID note for the destination address.
+///
+/// Note: Modifying anything in the real test vectors would invalidate the Merkle proof,
+/// as the proof was computed for the original leaf data including the original destination.
+#[rstest::rstest]
+#[case::real(ClaimDataSource::Real)]
+#[case::simulated(ClaimDataSource::Simulated)]
 #[tokio::test]
-async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
+async fn test_bridge_in_claim_to_p2id(#[case] data_source: ClaimDataSource) -> anyhow::Result<()> {
     let mut builder = MockChain::builder();
 
     // CREATE BRIDGE ACCOUNT (with bridge_out component for MMR validation)
@@ -40,16 +55,23 @@ async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
     let bridge_account = create_existing_bridge_account(bridge_seed);
     builder.add_account(bridge_account.clone())?;
 
+    // GET CLAIM DATA FROM JSON (source depends on the test case)
+    // --------------------------------------------------------------------------------------------
+    let (proof_data, leaf_data, ger) = match data_source {
+        ClaimDataSource::Real => real_claim_data(),
+        ClaimDataSource::Simulated => local_claim_data(),
+    };
+
     // CREATE AGGLAYER FAUCET ACCOUNT (with agglayer_faucet component)
+    // Use the origin token address and network from the claim data.
     // --------------------------------------------------------------------------------------------
     let token_symbol = "AGG";
     let decimals = 8u8;
     let max_supply = Felt::new(FungibleAsset::MAX_AMOUNT);
     let agglayer_faucet_seed = builder.rng_mut().draw_word();
 
-    // Origin token address for the faucet's conversion metadata
-    let origin_token_address = EthAddressFormat::new([0u8; 20]);
-    let origin_network = 0u32;
+    let origin_token_address = leaf_data.origin_token_address;
+    let origin_network = leaf_data.origin_network;
     let scale = 0u8;
 
     let agglayer_faucet = create_existing_agglayer_faucet(
@@ -65,11 +87,7 @@ async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
     );
     builder.add_account(agglayer_faucet.clone())?;
 
-    // GET REAL CLAIM DATA FROM JSON
-    // --------------------------------------------------------------------------------------------
-    let (proof_data, leaf_data, ger) = real_claim_data();
-
-    // Get the destination account ID from the leaf data
+    // Get the destination account ID from the leaf data.
     // This requires the destination_address to be in the embedded Miden AccountId format
     // (first 4 bytes must be zero).
     let destination_account_id = leaf_data
@@ -87,7 +105,7 @@ async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
         AccountState::Exists,
     )?;
 
-    // CREATE CLAIM NOTE WITH REAL PROOF DATA AND LEAF DATA
+    // CREATE CLAIM NOTE
     // --------------------------------------------------------------------------------------------
 
     // Generate a serial number for the P2ID note
@@ -151,7 +169,7 @@ async fn test_bridge_in_claim_to_p2id() -> anyhow::Result<()> {
     // Note: We intentionally do NOT verify the exact note ID or asset amount here because
     // the scale_u256_to_native_amount function is currently a TODO stub that doesn't perform
     // proper u256-to-native scaling. The test verifies that the bridge-in flow correctly
-    // validates the Merkle proof using real cryptographic proof data and creates an output note.
+    // validates the Merkle proof and creates an output note.
     //
     // TODO: Once scale_u256_to_native_amount is properly implemented, add:
     // - Verification that the minted amount matches the expected scaled value
