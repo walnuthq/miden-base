@@ -2,7 +2,7 @@
 use miden_processor::DefaultHost;
 use miden_processor::Host;
 use miden_processor::advice::AdviceInputs;
-use miden_processor::fast::{ExecutionOutput, FastProcessor};
+use miden_processor::{ExecutionOutput, FastProcessor};
 use miden_processor::{Program, StackInputs};
 #[cfg(test)]
 use miden_protocol::assembly::Assembler;

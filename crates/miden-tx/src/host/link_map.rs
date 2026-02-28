@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
-use miden_processor::fast::ExecutionOutput;
+use miden_processor::ExecutionOutput;
 use miden_processor::{ContextId, ProcessorState, advice::AdviceMutation};
 use miden_protocol::{Felt, LexicographicWord, PrimeCharacteristicRing, PrimeField64, Word, ZERO};
 
