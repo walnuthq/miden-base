@@ -4,7 +4,6 @@ use std::borrow::ToOwned;
 
 use miden_processor::crypto::RpoRandomCoin;
 use miden_processor::{Felt, ONE};
-use miden_protocol::Word;
 use miden_protocol::account::{Account, AccountDelta, AccountStorageDelta, AccountVaultDelta};
 use miden_protocol::asset::{Asset, FungibleAsset};
 use miden_protocol::errors::tx_kernel::{
@@ -27,6 +26,7 @@ use miden_protocol::transaction::memory::{
     OUTPUT_NOTE_SECTION_OFFSET,
 };
 use miden_protocol::transaction::{OutputNote, OutputNotes, TransactionOutputs};
+use miden_protocol::{Hasher, Word};
 use miden_standards::code_builder::CodeBuilder;
 use miden_standards::testing::mock_account::MockAccountExt;
 use miden_standards::testing::note::NoteBuilder;
@@ -116,24 +116,20 @@ async fn test_transaction_epilogue() -> anyhow::Result<()> {
     .to_commitment();
 
     let account_update_commitment =
-        miden_protocol::Hasher::merge(&[final_account.to_commitment(), account_delta_commitment]);
+        Hasher::merge(&[final_account.to_commitment(), account_delta_commitment]);
+    let fee_asset = FungibleAsset::new(
+        tx_context.tx_inputs().block_header().fee_parameters().native_asset_id(),
+        0,
+    )?;
 
     let mut expected_stack = Vec::with_capacity(16);
     expected_stack.extend(output_notes.commitment().as_elements().iter().rev());
     expected_stack.extend(account_update_commitment.as_elements().iter().rev());
-    expected_stack.extend(
-        Word::from(
-            FungibleAsset::new(
-                tx_context.tx_inputs().block_header().fee_parameters().native_asset_id(),
-                0,
-            )
-            .unwrap(),
-        )
-        .iter()
-        .rev(),
-    );
+    expected_stack.push(fee_asset.faucet_id().prefix().as_felt());
+    expected_stack.push(fee_asset.faucet_id().suffix());
+    expected_stack.push(Felt::try_from(fee_asset.amount()).unwrap());
     expected_stack.push(Felt::from(u32::MAX)); // Value for tx expiration block number
-    expected_stack.extend((13..16).map(|_| ZERO));
+    expected_stack.resize(16, ZERO);
 
     assert_eq!(
         exec_output.stack.as_slice(),

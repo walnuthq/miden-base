@@ -206,7 +206,7 @@ pub proc add_asset
     # => [ASSET_KEY, ASSET_VALUE, note_ptr, note_ptr]
 
     # validate the asset
-    exec.asset::validate_asset
+    exec.asset::validate
     # => [ASSET_KEY, ASSET_VALUE, note_ptr, note_ptr]
 
     # emit event to signal that a new asset is going to be added to the note.
@@ -530,7 +530,7 @@ proc add_asset_raw
         # if the asset exists, do not increment num assets
 
         # abort if the asset is non-fungible since it cannot be merged
-        exec.asset::is_fungible_asset
+        exec.asset::is_fungible_asset_key
         assert.err=ERR_NON_FUNGIBLE_ASSET_ALREADY_EXISTS
         # => [ASSET_KEY, ASSET_VALUE, asset_ptr, note_ptr]
 
