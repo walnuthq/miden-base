@@ -4,6 +4,7 @@
 
 ### Features
 
+- Introduce NOTE_MAX_SIZE (32 KiB) and enforce it on individual output notes ([#2205](https://github.com/0xMiden/miden-base/pull/2205))
 - Added AggLayer faucet registry to bridge account with conversion metadata, `CONFIG_AGG_BRIDGE` note for faucet registration, and FPI-based asset conversion in `bridge_out` ([#2426](https://github.com/0xMiden/miden-base/pull/2426)).
 - Enable `CodeBuilder` to add advice map entries to compiled scripts ([#2275](https://github.com/0xMiden/miden-base/pull/2275)).
 - Added `BlockNumber::MAX` constant to represent the maximum block number ([#2324](https://github.com/0xMiden/miden-base/pull/2324)).
