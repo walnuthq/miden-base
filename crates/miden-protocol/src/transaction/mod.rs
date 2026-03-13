@@ -18,12 +18,8 @@ mod tx_summary;
 
 pub use executed_tx::{ExecutedTransaction, TransactionMeasurements};
 #[doc(hidden)]
-pub use executor::{DefaultProgramExecutorFactory, ProgramExecutor, ProgramExecutorFactory};
-pub use executor::{
-    DefaultTransactionProgramExecutorFactory,
-    TransactionProgramExecutor,
-    TransactionProgramExecutorFactory,
-};
+pub use executor::ProgramExecutor;
+pub use executor::TransactionProgramExecutor;
 pub use inputs::{AccountInputs, InputNote, InputNotes, ToInputNoteCommitments, TransactionInputs};
 pub use kernel::{TransactionAdviceInputs, TransactionEventId, TransactionKernel, memory};
 pub use ordered_transactions::OrderedTransactionHeaders;

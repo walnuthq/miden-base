@@ -1,7 +1,6 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use miden_processor::FastProcessor;
 use miden_processor::advice::AdviceInputs;
 use miden_protocol::account::AccountId;
 use miden_protocol::block::BlockNumber;
@@ -12,11 +11,11 @@ use miden_protocol::transaction::{
     TransactionArgs,
     TransactionInputs,
     TransactionKernel,
-    TransactionProgramExecutorFactory,
+    TransactionProgramExecutor,
 };
 use miden_standards::note::{NoteConsumptionStatus, StandardNote};
 
-use super::TransactionExecutor;
+use super::{ExecutionOptions, TransactionExecutor};
 use crate::auth::TransactionAuthenticator;
 use crate::errors::TransactionCheckerError;
 use crate::executor::map_execution_error;
@@ -74,18 +73,18 @@ impl NoteConsumptionInfo {
 /// The check is performed using the [NoteConsumptionChecker::check_notes_consumability] procedure.
 /// Essentially runs the transaction to make sure that provided input notes could be consumed by the
 /// account.
-pub struct NoteConsumptionChecker<'a, STORE, AUTH, F: TransactionProgramExecutorFactory>(
-    &'a TransactionExecutor<'a, 'a, STORE, AUTH, F>,
+pub struct NoteConsumptionChecker<'a, STORE, AUTH, P: TransactionProgramExecutor>(
+    &'a TransactionExecutor<'a, 'a, STORE, AUTH, P>,
 );
 
-impl<'a, STORE, AUTH, F> NoteConsumptionChecker<'a, STORE, AUTH, F>
+impl<'a, STORE, AUTH, P> NoteConsumptionChecker<'a, STORE, AUTH, P>
 where
     STORE: DataStore + Sync,
     AUTH: TransactionAuthenticator + Sync,
-    F: TransactionProgramExecutorFactory,
+    P: TransactionProgramExecutor,
 {
     /// Creates a new [`NoteConsumptionChecker`] instance with the given transaction executor.
-    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH, F>) -> Self {
+    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH, P>) -> Self {
         NoteConsumptionChecker(tx_executor)
     }
 
@@ -341,7 +340,11 @@ where
                 .await
                 .map_err(TransactionCheckerError::TransactionPreparation)?;
 
-        let processor = FastProcessor::new(stack_inputs).with_advice(advice_inputs);
+        let processor = <P as TransactionProgramExecutor>::new(
+            stack_inputs,
+            advice_inputs,
+            ExecutionOptions::default(),
+        );
         let result = processor
             .execute(&TransactionKernel::main(), &mut host)
             .await

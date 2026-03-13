@@ -3,7 +3,7 @@ use alloc::sync::Arc;
 use core::marker::PhantomData;
 
 use miden_processor::advice::AdviceInputs;
-use miden_processor::{ExecutionError, StackInputs};
+use miden_processor::{ExecutionError, FastProcessor, StackInputs};
 pub use miden_processor::{ExecutionOptions, MastForestStore};
 use miden_protocol::account::AccountId;
 use miden_protocol::assembly::DefaultSourceManager;
@@ -11,7 +11,6 @@ use miden_protocol::assembly::debuginfo::SourceManagerSync;
 use miden_protocol::asset::{Asset, AssetVaultKey};
 use miden_protocol::block::BlockNumber;
 use miden_protocol::transaction::{
-    DefaultTransactionProgramExecutorFactory,
     ExecutedTransaction,
     InputNote,
     InputNotes,
@@ -19,7 +18,6 @@ use miden_protocol::transaction::{
     TransactionInputs,
     TransactionKernel,
     TransactionProgramExecutor,
-    TransactionProgramExecutorFactory,
     TransactionScript,
 };
 use miden_protocol::vm::StackOutputs;
@@ -61,13 +59,13 @@ pub struct TransactionExecutor<
     'auth,
     STORE: 'store,
     AUTH: 'auth,
-    F: TransactionProgramExecutorFactory = DefaultTransactionProgramExecutorFactory,
+    P: TransactionProgramExecutor = FastProcessor,
 > {
     data_store: &'store STORE,
     authenticator: Option<&'auth AUTH>,
     source_manager: Arc<dyn SourceManagerSync>,
     exec_options: ExecutionOptions,
-    _executor_factory: PhantomData<F>,
+    _processor: PhantomData<P>,
 }
 
 impl<'store, 'auth, STORE, AUTH> TransactionExecutor<'store, 'auth, STORE, AUTH>
@@ -84,7 +82,7 @@ where
     /// debug mode will be turned off.
     ///
     /// By default, the executor uses [`FastProcessor`](miden_processor::FastProcessor) for program
-    /// execution. Use [`with_executor_factory`](Self::with_executor_factory) to plug in a
+    /// execution. Use [`with_program_executor`](Self::with_program_executor) to plug in a
     /// different execution engine.
     pub fn new(data_store: &'store STORE) -> Self {
         const _: () = assert!(MIN_TX_EXECUTION_CYCLES <= MAX_TX_EXECUTION_CYCLES);
@@ -100,30 +98,30 @@ where
                 false,
             )
             .expect("Must not fail while max cycles is more than min trace length"),
-            _executor_factory: PhantomData,
+            _processor: PhantomData,
         }
     }
 }
 
-impl<'store, 'auth, STORE, AUTH, F> TransactionExecutor<'store, 'auth, STORE, AUTH, F>
+impl<'store, 'auth, STORE, AUTH, P> TransactionExecutor<'store, 'auth, STORE, AUTH, P>
 where
     STORE: DataStore + 'store + Sync,
     AUTH: TransactionAuthenticator + 'auth + Sync,
-    F: TransactionProgramExecutorFactory,
+    P: TransactionProgramExecutor,
 {
-    /// Replaces the transaction program executor factory with a different implementation.
+    /// Replaces the transaction program executor with a different implementation.
     ///
     /// This allows plugging in alternative execution engines while preserving the rest of the
     /// transaction executor configuration.
-    pub fn with_executor_factory<F2: TransactionProgramExecutorFactory>(
+    pub fn with_program_executor<P2: TransactionProgramExecutor>(
         self,
-    ) -> TransactionExecutor<'store, 'auth, STORE, AUTH, F2> {
+    ) -> TransactionExecutor<'store, 'auth, STORE, AUTH, P2> {
         TransactionExecutor {
             data_store: self.data_store,
             authenticator: self.authenticator,
             source_manager: self.source_manager,
             exec_options: self.exec_options,
-            _executor_factory: PhantomData,
+            _processor: PhantomData,
         }
     }
 
@@ -225,7 +223,8 @@ where
 
         // instantiate the processor in debug mode only when debug mode is specified via execution
         // options; this is important because in debug mode execution is almost 100x slower
-        let processor = F::create_executor(stack_inputs, advice_inputs, self.exec_options);
+        let processor =
+            <P as TransactionProgramExecutor>::new(stack_inputs, advice_inputs, self.exec_options);
 
         let output = processor
             .execute(&TransactionKernel::main(), &mut host)
@@ -271,8 +270,11 @@ where
 
         let (mut host, stack_inputs, advice_inputs) = self.prepare_transaction(&tx_inputs).await?;
 
-        let processor =
-            F::create_executor(stack_inputs, advice_inputs, ExecutionOptions::default());
+        let processor = <P as TransactionProgramExecutor>::new(
+            stack_inputs,
+            advice_inputs,
+            ExecutionOptions::default(),
+        );
         let output = processor
             .execute(&TransactionKernel::tx_script_main(), &mut host)
             .await

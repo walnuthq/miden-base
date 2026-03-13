@@ -21,10 +21,7 @@ pub use executor::{
 
 mod host;
 pub use host::{AccountProcedureIndexMap, LinkMap, MemoryViewer, ScriptMastForestStore};
-pub use miden_protocol::transaction::{
-    TransactionProgramExecutor,
-    TransactionProgramExecutorFactory,
-};
+pub use miden_protocol::transaction::TransactionProgramExecutor;
 
 mod prover;
 pub use prover::{
@@ -52,4 +49,15 @@ pub mod auth;
 
 // RE-EXPORTS
 // ================================================================================================
-pub use miden_protocol::utils;
+pub mod utils {
+    pub use miden_protocol::utils::serde::{
+        BudgetedReader,
+        ByteReader,
+        ByteWriter,
+        Deserializable,
+        DeserializationError,
+        Serializable,
+        SliceReader,
+    };
+    pub use miden_protocol::utils::*;
+}
