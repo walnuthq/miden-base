@@ -10,8 +10,9 @@ use miden_processor::{
     StackInputs,
 };
 
-/// A transaction-scoped program executor used by `miden-tx`.
-pub trait TransactionProgramExecutor {
+/// A transaction-scoped program executor used by
+/// [`TransactionExecutor`](super::TransactionExecutor).
+pub trait ProgramExecutor {
     /// Create a new executor configured with the provided transaction inputs and options.
     fn new(
         stack_inputs: StackInputs,
@@ -29,7 +30,7 @@ pub trait TransactionProgramExecutor {
     ) -> impl FutureMaybeSend<Result<ExecutionOutput, ExecutionError>>;
 }
 
-impl TransactionProgramExecutor for FastProcessor {
+impl ProgramExecutor for FastProcessor {
     fn new(
         stack_inputs: StackInputs,
         advice_inputs: AdviceInputs,
@@ -46,6 +47,3 @@ impl TransactionProgramExecutor for FastProcessor {
         FastProcessor::execute(self, program, host)
     }
 }
-
-#[doc(hidden)]
-pub use TransactionProgramExecutor as ProgramExecutor;

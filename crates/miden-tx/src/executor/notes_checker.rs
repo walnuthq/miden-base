@@ -11,11 +11,10 @@ use miden_protocol::transaction::{
     TransactionArgs,
     TransactionInputs,
     TransactionKernel,
-    TransactionProgramExecutor,
 };
 use miden_standards::note::{NoteConsumptionStatus, StandardNote};
 
-use super::{ExecutionOptions, TransactionExecutor};
+use super::{ExecutionOptions, ProgramExecutor, TransactionExecutor};
 use crate::auth::TransactionAuthenticator;
 use crate::errors::TransactionCheckerError;
 use crate::executor::map_execution_error;
@@ -73,18 +72,18 @@ impl NoteConsumptionInfo {
 /// The check is performed using the [NoteConsumptionChecker::check_notes_consumability] procedure.
 /// Essentially runs the transaction to make sure that provided input notes could be consumed by the
 /// account.
-pub struct NoteConsumptionChecker<'a, STORE, AUTH, P: TransactionProgramExecutor>(
-    &'a TransactionExecutor<'a, 'a, STORE, AUTH, P>,
+pub struct NoteConsumptionChecker<'a, STORE, AUTH, EXEC: ProgramExecutor>(
+    &'a TransactionExecutor<'a, 'a, STORE, AUTH, EXEC>,
 );
 
-impl<'a, STORE, AUTH, P> NoteConsumptionChecker<'a, STORE, AUTH, P>
+impl<'a, STORE, AUTH, EXEC> NoteConsumptionChecker<'a, STORE, AUTH, EXEC>
 where
     STORE: DataStore + Sync,
     AUTH: TransactionAuthenticator + Sync,
-    P: TransactionProgramExecutor,
+    EXEC: ProgramExecutor,
 {
     /// Creates a new [`NoteConsumptionChecker`] instance with the given transaction executor.
-    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH, P>) -> Self {
+    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH, EXEC>) -> Self {
         NoteConsumptionChecker(tx_executor)
     }
 
@@ -340,11 +339,7 @@ where
                 .await
                 .map_err(TransactionCheckerError::TransactionPreparation)?;
 
-        let processor = <P as TransactionProgramExecutor>::new(
-            stack_inputs,
-            advice_inputs,
-            ExecutionOptions::default(),
-        );
+        let processor = EXEC::new(stack_inputs, advice_inputs, ExecutionOptions::default());
         let result = processor
             .execute(&TransactionKernel::main(), &mut host)
             .await

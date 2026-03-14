@@ -15,13 +15,13 @@ pub use executor::{
     MastForestStore,
     NoteConsumptionChecker,
     NoteConsumptionInfo,
+    ProgramExecutor,
     TransactionExecutor,
     TransactionExecutorHost,
 };
 
 mod host;
 pub use host::{AccountProcedureIndexMap, LinkMap, MemoryViewer, ScriptMastForestStore};
-pub use miden_protocol::transaction::TransactionProgramExecutor;
 
 mod prover;
 pub use prover::{
@@ -49,15 +49,4 @@ pub mod auth;
 
 // RE-EXPORTS
 // ================================================================================================
-pub mod utils {
-    pub use miden_protocol::utils::serde::{
-        BudgetedReader,
-        ByteReader,
-        ByteWriter,
-        Deserializable,
-        DeserializationError,
-        Serializable,
-        SliceReader,
-    };
-    pub use miden_protocol::utils::*;
-}
+pub use miden_protocol::utils;

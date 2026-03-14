@@ -17,7 +17,6 @@ use miden_protocol::transaction::{
     TransactionArgs,
     TransactionInputs,
     TransactionKernel,
-    TransactionProgramExecutor,
     TransactionScript,
 };
 use miden_protocol::vm::StackOutputs;
@@ -42,6 +41,9 @@ pub use notes_checker::{
     NoteConsumptionInfo,
 };
 
+mod program_executor;
+pub use program_executor::ProgramExecutor;
+
 // TRANSACTION EXECUTOR
 // ================================================================================================
 
@@ -59,13 +61,13 @@ pub struct TransactionExecutor<
     'auth,
     STORE: 'store,
     AUTH: 'auth,
-    P: TransactionProgramExecutor = FastProcessor,
+    EXEC: ProgramExecutor = FastProcessor,
 > {
     data_store: &'store STORE,
     authenticator: Option<&'auth AUTH>,
     source_manager: Arc<dyn SourceManagerSync>,
     exec_options: ExecutionOptions,
-    _processor: PhantomData<P>,
+    _executor: PhantomData<EXEC>,
 }
 
 impl<'store, 'auth, STORE, AUTH> TransactionExecutor<'store, 'auth, STORE, AUTH>
@@ -86,7 +88,7 @@ where
     /// different execution engine.
     pub fn new(data_store: &'store STORE) -> Self {
         const _: () = assert!(MIN_TX_EXECUTION_CYCLES <= MAX_TX_EXECUTION_CYCLES);
-        TransactionExecutor {
+        Self {
             data_store,
             authenticator: None,
             source_manager: Arc::new(DefaultSourceManager::default()),
@@ -98,30 +100,30 @@ where
                 false,
             )
             .expect("Must not fail while max cycles is more than min trace length"),
-            _processor: PhantomData,
+            _executor: PhantomData,
         }
     }
 }
 
-impl<'store, 'auth, STORE, AUTH, P> TransactionExecutor<'store, 'auth, STORE, AUTH, P>
+impl<'store, 'auth, STORE, AUTH, EXEC> TransactionExecutor<'store, 'auth, STORE, AUTH, EXEC>
 where
     STORE: DataStore + 'store + Sync,
     AUTH: TransactionAuthenticator + 'auth + Sync,
-    P: TransactionProgramExecutor,
+    EXEC: ProgramExecutor,
 {
     /// Replaces the transaction program executor with a different implementation.
     ///
     /// This allows plugging in alternative execution engines while preserving the rest of the
     /// transaction executor configuration.
-    pub fn with_program_executor<P2: TransactionProgramExecutor>(
+    pub fn with_program_executor<EXEC2: ProgramExecutor>(
         self,
-    ) -> TransactionExecutor<'store, 'auth, STORE, AUTH, P2> {
-        TransactionExecutor {
+    ) -> TransactionExecutor<'store, 'auth, STORE, AUTH, EXEC2> {
+        TransactionExecutor::<'store, 'auth, STORE, AUTH, EXEC2> {
             data_store: self.data_store,
             authenticator: self.authenticator,
             source_manager: self.source_manager,
             exec_options: self.exec_options,
-            _processor: PhantomData,
+            _executor: PhantomData,
         }
     }
 
@@ -223,8 +225,7 @@ where
 
         // instantiate the processor in debug mode only when debug mode is specified via execution
         // options; this is important because in debug mode execution is almost 100x slower
-        let processor =
-            <P as TransactionProgramExecutor>::new(stack_inputs, advice_inputs, self.exec_options);
+        let processor = EXEC::new(stack_inputs, advice_inputs, self.exec_options);
 
         let output = processor
             .execute(&TransactionKernel::main(), &mut host)
@@ -270,11 +271,7 @@ where
 
         let (mut host, stack_inputs, advice_inputs) = self.prepare_transaction(&tx_inputs).await?;
 
-        let processor = <P as TransactionProgramExecutor>::new(
-            stack_inputs,
-            advice_inputs,
-            ExecutionOptions::default(),
-        );
+        let processor = EXEC::new(stack_inputs, advice_inputs, ExecutionOptions::default());
         let output = processor
             .execute(&TransactionKernel::tx_script_main(), &mut host)
             .await
