@@ -14,7 +14,7 @@ use miden_protocol::transaction::{
 };
 use miden_standards::note::{NoteConsumptionStatus, StandardNote};
 
-use super::{ExecutionOptions, ProgramExecutor, TransactionExecutor};
+use super::{ProgramExecutor, TransactionExecutor};
 use crate::auth::TransactionAuthenticator;
 use crate::errors::TransactionCheckerError;
 use crate::executor::map_execution_error;
@@ -339,7 +339,7 @@ where
                 .await
                 .map_err(TransactionCheckerError::TransactionPreparation)?;
 
-        let processor = EXEC::new(stack_inputs, advice_inputs, ExecutionOptions::default());
+        let processor = EXEC::new(stack_inputs, advice_inputs, self.0.exec_options);
         let result = processor
             .execute(&TransactionKernel::main(), &mut host)
             .await

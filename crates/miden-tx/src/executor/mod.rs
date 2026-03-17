@@ -271,7 +271,7 @@ where
 
         let (mut host, stack_inputs, advice_inputs) = self.prepare_transaction(&tx_inputs).await?;
 
-        let processor = EXEC::new(stack_inputs, advice_inputs, ExecutionOptions::default());
+        let processor = EXEC::new(stack_inputs, advice_inputs, self.exec_options);
         let output = processor
             .execute(&TransactionKernel::tx_script_main(), &mut host)
             .await
