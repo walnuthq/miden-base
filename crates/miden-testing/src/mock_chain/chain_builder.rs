@@ -13,11 +13,12 @@ const DEFAULT_FAUCET_DECIMALS: u8 = 10;
 // ================================================================================================
 
 use itertools::Itertools;
-use miden_processor::crypto::random::RpoRandomCoin;
+use miden_processor::crypto::random::RandomCoin;
 use miden_protocol::account::delta::AccountUpdateDetails;
 use miden_protocol::account::{
     Account,
     AccountBuilder,
+    AccountComponent,
     AccountDelta,
     AccountId,
     AccountStorageMode,
@@ -48,6 +49,11 @@ use miden_protocol::transaction::{OrderedTransactionHeaders, RawOutputNote, Tran
 use miden_protocol::{Felt, MAX_OUTPUT_NOTES_PER_BATCH, Word};
 use miden_standards::account::access::Ownable2Step;
 use miden_standards::account::faucets::{BasicFungibleFaucet, NetworkFungibleFaucet};
+use miden_standards::account::mint_policies::{
+    AuthControlled,
+    OwnerControlled,
+    OwnerControlledInitConfig,
+};
 use miden_standards::account::wallets::BasicWallet;
 use miden_standards::note::{P2idNote, P2ideNote, P2ideNoteStorage, SwapNote};
 use miden_standards::testing::account_component::MockAccountComponent;
@@ -105,7 +111,7 @@ pub struct MockChainBuilder {
     accounts: BTreeMap<AccountId, Account>,
     account_authenticators: BTreeMap<AccountId, AccountAuthenticator>,
     notes: Vec<RawOutputNote>,
-    rng: RpoRandomCoin,
+    rng: RandomCoin,
     // Fee parameters.
     native_asset_id: AccountId,
     verification_base_fee: u32,
@@ -129,7 +135,7 @@ impl MockChainBuilder {
             accounts: BTreeMap::new(),
             account_authenticators: BTreeMap::new(),
             notes: Vec::new(),
-            rng: RpoRandomCoin::new(Default::default()),
+            rng: RandomCoin::new(Default::default()),
             native_asset_id,
             verification_base_fee: 0,
         }
@@ -332,7 +338,8 @@ impl MockChainBuilder {
         let account_builder = AccountBuilder::new(self.rng.random())
             .storage_mode(AccountStorageMode::Public)
             .account_type(AccountType::FungibleFaucet)
-            .with_component(basic_faucet);
+            .with_component(basic_faucet)
+            .with_component(AuthControlled::allow_all());
 
         self.add_account_from_builder(auth_method, account_builder, AccountState::New)
     }
@@ -361,6 +368,7 @@ impl MockChainBuilder {
         let account_builder = AccountBuilder::new(self.rng.random())
             .storage_mode(AccountStorageMode::Public)
             .with_component(basic_faucet)
+            .with_component(AuthControlled::allow_all())
             .account_type(AccountType::FungibleFaucet);
 
         self.add_account_from_builder(auth_method, account_builder, AccountState::Exists)
@@ -375,6 +383,7 @@ impl MockChainBuilder {
         max_supply: u64,
         owner_account_id: AccountId,
         token_supply: Option<u64>,
+        mint_policy: OwnerControlledInitConfig,
     ) -> anyhow::Result<Account> {
         let max_supply = Felt::try_from(max_supply)?;
         let token_supply = Felt::try_from(token_supply.unwrap_or(0))?;
@@ -390,6 +399,7 @@ impl MockChainBuilder {
             .storage_mode(AccountStorageMode::Network)
             .with_component(network_faucet)
             .with_component(Ownable2Step::new(owner_account_id))
+            .with_component(OwnerControlled::new(mint_policy))
             .account_type(AccountType::FungibleFaucet);
 
         // Network faucets always use IncrNonce auth (no authentication)
@@ -483,6 +493,20 @@ impl MockChainBuilder {
         }
 
         Ok(account)
+    }
+    pub fn add_existing_account_from_components(
+        &mut self,
+        auth: Auth,
+        components: impl IntoIterator<Item = AccountComponent>,
+    ) -> anyhow::Result<Account> {
+        let mut account_builder =
+            Account::builder(rand::rng().random()).storage_mode(AccountStorageMode::Public);
+
+        for component in components {
+            account_builder = account_builder.with_component(component);
+        }
+
+        self.add_account_from_builder(auth, account_builder, AccountState::Exists)
     }
 
     /// Adds the provided account to the list of genesis accounts.
@@ -655,7 +679,7 @@ impl MockChainBuilder {
     /// Returns a mutable reference to the builder's RNG.
     ///
     /// This can be used when creating accounts or notes and randomness is required.
-    pub fn rng_mut(&mut self) -> &mut RpoRandomCoin {
+    pub fn rng_mut(&mut self) -> &mut RandomCoin {
         &mut self.rng
     }
 

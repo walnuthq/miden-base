@@ -30,7 +30,7 @@ use miden_protocol::transaction::{
     TransactionAdviceInputs,
     TransactionSummary,
 };
-use miden_protocol::vm::AdviceMap;
+use miden_protocol::vm::{AdviceMap, EventId, EventName};
 use miden_protocol::{Felt, Hasher, Word};
 use miden_standards::note::StandardNote;
 
@@ -236,7 +236,7 @@ where
                 .account_delta_tracker()
                 .vault_delta()
                 .fungible()
-                .amount(&initial_fee_asset.faucet_id())
+                .amount(&initial_fee_asset.vault_key())
                 .unwrap_or(0);
 
             // SAFETY: Initial native asset faucet ID should be a fungible faucet and amount should
@@ -691,6 +691,10 @@ where
 
             result.map_err(EventError::from)
         }
+    }
+
+    fn resolve_event(&self, event_id: EventId) -> Option<&EventName> {
+        self.base_host.resolve_event(event_id)
     }
 }
 
