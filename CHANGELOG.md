@@ -109,6 +109,10 @@
 - Fixed link map entry pointer validation bypass ([#2556](https://github.com/0xMiden/protocol/pull/2556)).
 - Added foreign account ID assertion in `account::load_foreign_account` ([#2560](https://github.com/0xMiden/protocol/pull/2560)).
 
+### Fixes
+
+- Fixed `PartialAccountTree::track_account` rejecting provably-empty leaves in sparse trees by handling `SmtLeaf::Empty` correctly ([#2598](https://github.com/0xMiden/protocol/pull/2598)).
+
 ## 0.13.3 (2026-01-27)
 
 - Fixed `CLAIM` note creation to use `NetworkAccountTarget` attachment ([#2352](https://github.com/0xMiden/miden-base/pull/2352)).
