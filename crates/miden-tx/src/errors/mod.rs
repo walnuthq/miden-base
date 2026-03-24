@@ -3,9 +3,10 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::error::Error;
 
-use miden_processor::{DeserializationError, ExecutionError};
-use miden_protocol::account::AccountId;
+use miden_processor::ExecutionError;
+use miden_processor::serde::DeserializationError;
 use miden_protocol::account::auth::PublicKeyCommitment;
+use miden_protocol::account::{AccountId, StorageMapKey};
 use miden_protocol::assembly::diagnostics::reporting::PrintDiagnostic;
 use miden_protocol::asset::AssetVaultKey;
 use miden_protocol::block::BlockNumber;
@@ -15,8 +16,10 @@ use miden_protocol::errors::{
     AccountError,
     AssetError,
     NoteError,
+    OutputNoteError,
     ProvenTransactionError,
     TransactionInputError,
+    TransactionInputsExtractionError,
     TransactionOutputError,
 };
 use miden_protocol::note::{NoteId, NoteMetadata};
@@ -72,6 +75,8 @@ impl From<TransactionCheckerError> for TransactionExecutorError {
 
 #[derive(Debug, Error)]
 pub enum TransactionExecutorError {
+    #[error("failed to read fee asset from transaction inputs")]
+    FeeAssetRetrievalFailed(#[source] TransactionInputsExtractionError),
     #[error("failed to fetch transaction inputs from the data store")]
     FetchTransactionInputsFailed(#[source] DataStoreError),
     #[error("failed to fetch asset witnesses from the data store")]
@@ -145,6 +150,8 @@ pub enum TransactionProverError {
     RemoveFeeAssetFromDelta(#[source] AccountDeltaError),
     #[error("failed to construct transaction outputs")]
     TransactionOutputConstructionFailed(#[source] TransactionOutputError),
+    #[error("failed to shrink output note")]
+    OutputNoteShrinkFailed(#[source] OutputNoteError),
     #[error("failed to build proven transaction")]
     ProvenTransactionBuildFailed(#[source] ProvenTransactionError),
     // Print the diagnostic directly instead of returning the source error. In the source error
@@ -204,8 +211,8 @@ pub enum TransactionKernelError {
     AccountDeltaRemoveAssetFailed(#[source] AccountDeltaError),
     #[error("failed to add asset to note")]
     FailedToAddAssetToNote(#[source] NoteError),
-    #[error("note input data has hash {actual} but expected hash {expected}")]
-    InvalidNoteInputs { expected: Word, actual: Word },
+    #[error("note storage has commitment {actual} but expected commitment {expected}")]
+    InvalidNoteStorage { expected: Word, actual: Word },
     #[error(
         "failed to respond to signature requested since no authenticator is assigned to the host"
     )]
@@ -222,9 +229,9 @@ pub enum TransactionKernelError {
         source: AssetError,
     },
     #[error(
-        "note inputs data extracted from the advice map by the event handler is not well formed"
+        "note storage data extracted from the advice map by the event handler is not well formed"
     )]
-    MalformedNoteInputs(#[source] NoteError),
+    MalformedNoteStorage(#[source] NoteError),
     #[error(
         "note script data `{data:?}` extracted from the advice map by the event handler is not well formed"
     )]
@@ -247,9 +254,9 @@ pub enum TransactionKernelError {
     )]
     NoteAttachmentArrayMismatch { actual: Word, provided: Word },
     #[error(
-        "note input data in advice provider contains fewer elements ({actual}) than specified ({specified}) by its inputs length"
+        "note storage in advice provider contains fewer items ({actual}) than specified ({specified}) by its number of storage items"
     )]
-    TooFewElementsForNoteInputs { specified: u64, actual: u64 },
+    TooFewElementsForNoteStorage { specified: u64, actual: u64 },
     #[error("account procedure with procedure root {0} is not in the account procedure index map")]
     UnknownAccountProcedure(Word),
     #[error("code commitment {0} is not in the account procedure index map")]
@@ -283,7 +290,7 @@ pub enum TransactionKernelError {
     )]
     GetStorageMapWitness {
         map_root: Word,
-        map_key: Word,
+        map_key: StorageMapKey,
         // thiserror will return this when calling Error::source on TransactionKernelError.
         source: DataStoreError,
     },

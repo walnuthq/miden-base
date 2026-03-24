@@ -1,5 +1,9 @@
 use miden_assembly::Library;
-use miden_processor::MastForest;
+use miden_assembly::library::ProcedureExport;
+use miden_processor::mast::{MastForest, MastNodeExt};
+
+use crate::account::AccountProcedureRoot;
+use crate::vm::AdviceMap;
 
 // ACCOUNT COMPONENT CODE
 // ================================================================================================
@@ -23,6 +27,35 @@ impl AccountComponentCode {
     pub fn into_library(self) -> Library {
         self.0
     }
+
+    /// Returns an iterator over the [`AccountProcedureRoot`]s of this component's exported
+    /// procedures.
+    pub fn procedure_roots(&self) -> impl Iterator<Item = AccountProcedureRoot> + '_ {
+        self.0.exports().filter_map(|export| {
+            export.as_procedure().map(|proc_export| {
+                let digest = self.0.mast_forest()[proc_export.node].digest();
+                AccountProcedureRoot::from_raw(digest)
+            })
+        })
+    }
+
+    /// Returns the procedure exports of this component.
+    pub fn exports(&self) -> impl Iterator<Item = &ProcedureExport> + '_ {
+        self.0.exports().filter_map(|export| export.as_procedure())
+    }
+
+    /// Returns a new [AccountComponentCode] with the provided advice map entries merged into the
+    /// underlying [Library]'s [MastForest].
+    ///
+    /// This allows adding advice map entries to an already-compiled account component,
+    /// which is useful when the entries are determined after compilation.
+    pub fn with_advice_map(self, advice_map: AdviceMap) -> Self {
+        if advice_map.is_empty() {
+            return self;
+        }
+
+        Self(self.0.with_advice_map(advice_map))
+    }
 }
 
 impl AsRef<Library> for AccountComponentCode {
@@ -43,5 +76,45 @@ impl From<Library> for AccountComponentCode {
 impl From<AccountComponentCode> for Library {
     fn from(value: AccountComponentCode) -> Self {
         value.into_library()
+    }
+}
+
+// TESTS
+// ================================================================================================
+
+#[cfg(test)]
+mod tests {
+    use miden_core::{Felt, Word};
+
+    use super::*;
+    use crate::assembly::Assembler;
+
+    #[test]
+    fn test_account_component_code_with_advice_map() {
+        let assembler = Assembler::default();
+        let library = assembler
+            .assemble_library(["pub proc test nop end"])
+            .expect("failed to assemble library");
+        let component_code = AccountComponentCode::from(library);
+
+        assert!(component_code.mast_forest().advice_map().is_empty());
+
+        // Empty advice map should be a no-op (digest stays the same)
+        let cloned = component_code.clone();
+        let original_digest = cloned.as_library().digest();
+        let component_code = component_code.with_advice_map(AdviceMap::default());
+        assert_eq!(original_digest, component_code.as_library().digest());
+
+        // Non-empty advice map should add entries
+        let key = Word::from([10u32, 20, 30, 40]);
+        let value = vec![Felt::new(200)];
+        let mut advice_map = AdviceMap::default();
+        advice_map.insert(key, value.clone());
+
+        let component_code = component_code.with_advice_map(advice_map);
+
+        let mast = component_code.mast_forest();
+        let stored = mast.advice_map().get(&key).expect("entry should be present");
+        assert_eq!(stored.as_ref(), value.as_slice());
     }
 }

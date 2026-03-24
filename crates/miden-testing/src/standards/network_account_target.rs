@@ -2,9 +2,9 @@
 
 use miden_protocol::Felt;
 use miden_protocol::account::AccountStorageMode;
-use miden_protocol::note::{NoteAttachment, NoteExecutionHint, NoteMetadata, NoteTag, NoteType};
+use miden_protocol::note::{NoteAttachment, NoteMetadata, NoteTag, NoteType};
 use miden_protocol::testing::account_id::AccountIdBuilder;
-use miden_standards::note::NetworkAccountTarget;
+use miden_standards::note::{NetworkAccountTarget, NoteExecutionHint};
 
 use crate::executor::CodeExecutor;
 
@@ -16,9 +16,9 @@ async fn network_account_target_get_id() -> anyhow::Result<()> {
     let exec_hint = NoteExecutionHint::Always;
 
     let attachment = NoteAttachment::from(NetworkAccountTarget::new(target_id, exec_hint)?);
-    let metadata =
-        NoteMetadata::new(target_id, NoteType::Public, NoteTag::with_account_target(target_id))
-            .with_attachment(attachment.clone());
+    let metadata = NoteMetadata::new(target_id, NoteType::Public)
+        .with_tag(NoteTag::with_account_target(target_id))
+        .with_attachment(attachment.clone());
     let metadata_header = metadata.to_header_word();
 
     let source = format!(
@@ -26,12 +26,21 @@ async fn network_account_target_get_id() -> anyhow::Result<()> {
         use miden::standards::attachments::network_account_target
         use miden::protocol::note
 
+        const ERR_NOT_NETWORK_ACCOUNT_TARGET = "attachment is not a valid network account target"
+
         begin
             push.{attachment_word}
             push.{metadata_header}
             exec.note::extract_attachment_info_from_metadata
             # => [attachment_kind, attachment_scheme, NOTE_ATTACHMENT]
+            swap
+            # => [attachment_scheme, attachment_kind, NOTE_ATTACHMENT]
+            exec.network_account_target::is_network_account_target
+            # => [is_valid, NOTE_ATTACHMENT]
+            assert.err=ERR_NOT_NETWORK_ACCOUNT_TARGET
+            # => [NOTE_ATTACHMENT]
             exec.network_account_target::get_id
+            # => [account_id_suffix, account_id_prefix]
             # cleanup stack
             movup.2 drop movup.2 drop
         end
@@ -42,8 +51,8 @@ async fn network_account_target_get_id() -> anyhow::Result<()> {
 
     let exec_output = CodeExecutor::with_default_host().run(&source).await?;
 
-    assert_eq!(exec_output.stack[0], target_id.prefix().as_felt());
-    assert_eq!(exec_output.stack[1], target_id.suffix());
+    assert_eq!(exec_output.stack[0], target_id.suffix());
+    assert_eq!(exec_output.stack[1], target_id.prefix().as_felt());
 
     Ok(())
 }
@@ -65,9 +74,9 @@ async fn network_account_target_new_attachment() -> anyhow::Result<()> {
 
         begin
             push.{exec_hint}
-            push.{target_id_suffix}
             push.{target_id_prefix}
-            # => [target_id_prefix, target_id_suffix, exec_hint]
+            push.{target_id_suffix}
+            # => [target_id_suffix, target_id_prefix, exec_hint]
             exec.network_account_target::new
             # => [attachment_scheme, attachment_kind, ATTACHMENT, pad(16)]
 
@@ -88,7 +97,8 @@ async fn network_account_target_new_attachment() -> anyhow::Result<()> {
         Felt::from(NetworkAccountTarget::ATTACHMENT_SCHEME.as_u32())
     );
 
-    assert_eq!(exec_output.stack.get_stack_word_be(2).unwrap(), attachment_word);
+    let word = exec_output.stack.get_word(2).unwrap();
+    assert_eq!(word, attachment_word);
 
     Ok(())
 }
@@ -104,15 +114,22 @@ async fn network_account_target_attachment_round_trip() -> anyhow::Result<()> {
         r#"
         use miden::standards::attachments::network_account_target
 
+        const ERR_NOT_NETWORK_ACCOUNT_TARGET = "attachment is not a valid network account target"
+
         begin
             push.{exec_hint}
-            push.{target_id_suffix}
             push.{target_id_prefix}
-            # => [target_id_prefix, target_id_suffix, exec_hint]
+            push.{target_id_suffix}
+            # => [target_id_suffix, target_id_prefix, exec_hint]
             exec.network_account_target::new
             # => [attachment_scheme, attachment_kind, ATTACHMENT]
+            exec.network_account_target::is_network_account_target
+            # => [is_valid, ATTACHMENT]
+            assert.err=ERR_NOT_NETWORK_ACCOUNT_TARGET
+            # => [ATTACHMENT]
             exec.network_account_target::get_id
-            # => [target_id_prefix, target_id_suffix]
+            # => [target_id_suffix, target_id_prefix]
+            # cleanup stack
             movup.2 drop movup.2 drop
         end
         "#,
@@ -123,8 +140,8 @@ async fn network_account_target_attachment_round_trip() -> anyhow::Result<()> {
 
     let exec_output = CodeExecutor::with_default_host().run(&source).await?;
 
-    assert_eq!(exec_output.stack[0], target_id.prefix().as_felt());
-    assert_eq!(exec_output.stack[1], target_id.suffix());
+    assert_eq!(exec_output.stack[0], target_id.suffix());
+    assert_eq!(exec_output.stack[1], target_id.prefix().as_felt());
 
     Ok(())
 }

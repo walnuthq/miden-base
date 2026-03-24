@@ -6,13 +6,17 @@ use std::{
     vec::Vec,
 };
 
-#[cfg(feature = "std")]
-use miden_core::utils::SliceReader;
-use miden_core::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
-use miden_processor::DeserializationError;
-
 use super::{Note, NoteDetails, NoteId, NoteInclusionProof, NoteTag};
 use crate::block::BlockNumber;
+#[cfg(feature = "std")]
+use crate::utils::serde::SliceReader;
+use crate::utils::serde::{
+    ByteReader,
+    ByteWriter,
+    Deserializable,
+    DeserializationError,
+    Serializable,
+};
 
 const MAGIC: &str = "note";
 
@@ -137,8 +141,6 @@ impl Deserializable for NoteFile {
 mod tests {
     use alloc::vec::Vec;
 
-    use miden_core::utils::{Deserializable, Serializable};
-
     use crate::Word;
     use crate::account::AccountId;
     use crate::asset::{Asset, FungibleAsset};
@@ -148,10 +150,10 @@ mod tests {
         NoteAssets,
         NoteFile,
         NoteInclusionProof,
-        NoteInputs,
         NoteMetadata,
         NoteRecipient,
         NoteScript,
+        NoteStorage,
         NoteTag,
         NoteType,
     };
@@ -159,6 +161,7 @@ mod tests {
         ACCOUNT_ID_PUBLIC_FUNGIBLE_FAUCET,
         ACCOUNT_ID_REGULAR_PRIVATE_ACCOUNT_UPDATABLE_CODE,
     };
+    use crate::utils::serde::{Deserializable, Serializable};
 
     fn create_example_note() -> Note {
         let faucet = AccountId::try_from(ACCOUNT_ID_PUBLIC_FUNGIBLE_FAUCET).unwrap();
@@ -167,11 +170,11 @@ mod tests {
 
         let serial_num = Word::from([0, 1, 2, 3u32]);
         let script = NoteScript::mock();
-        let note_inputs = NoteInputs::new(vec![target.prefix().into()]).unwrap();
-        let recipient = NoteRecipient::new(serial_num, script, note_inputs);
+        let note_storage = NoteStorage::new(vec![target.prefix().into()]).unwrap();
+        let recipient = NoteRecipient::new(serial_num, script, note_storage);
 
         let asset = Asset::Fungible(FungibleAsset::new(faucet, 100).unwrap());
-        let metadata = NoteMetadata::new(faucet, NoteType::Public, NoteTag::from(123));
+        let metadata = NoteMetadata::new(faucet, NoteType::Public).with_tag(NoteTag::from(123));
 
         Note::new(NoteAssets::new(vec![asset]).unwrap(), metadata, recipient)
     }

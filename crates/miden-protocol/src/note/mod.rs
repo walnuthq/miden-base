@@ -1,10 +1,15 @@
 use miden_crypto::Word;
-use miden_crypto::utils::{ByteReader, ByteWriter, Deserializable, Serializable};
-use miden_processor::DeserializationError;
 
 use crate::account::AccountId;
 use crate::errors::NoteError;
-use crate::{Felt, Hasher, WORD_SIZE, ZERO};
+use crate::utils::serde::{
+    ByteReader,
+    ByteWriter,
+    Deserializable,
+    DeserializationError,
+    Serializable,
+};
+use crate::{Felt, Hasher, ZERO};
 
 mod assets;
 pub use assets::NoteAssets;
@@ -15,11 +20,11 @@ pub use details::NoteDetails;
 mod header;
 pub use header::{NoteHeader, compute_note_commitment};
 
-mod inputs;
-pub use inputs::NoteInputs;
+mod storage;
+pub use storage::NoteStorage;
 
 mod metadata;
-pub use metadata::NoteMetadata;
+pub use metadata::{NoteMetadata, NoteMetadataHeader};
 
 mod attachment;
 pub use attachment::{
@@ -29,9 +34,6 @@ pub use attachment::{
     NoteAttachmentKind,
     NoteAttachmentScheme,
 };
-
-mod execution_hint;
-pub use execution_hint::NoteExecutionHint;
 
 mod note_id;
 pub use note_id::NoteId;
@@ -68,7 +70,7 @@ pub use file::NoteFile;
 ///
 /// Notes consist of note metadata and details. Note metadata is always public, but details may be
 /// either public, encrypted, or private, depending on the note type. Note details consist of note
-/// assets, script, inputs, and a serial number, the three latter grouped into a recipient object.
+/// assets, script, storage, and a serial number, the three latter grouped into a recipient object.
 ///
 /// Note details can be reduced to two unique identifiers: [NoteId] and [Nullifier]. The former is
 /// publicly associated with a note, while the latter is known only to entities which have access
@@ -78,10 +80,10 @@ pub use file::NoteFile;
 /// note's script determines the conditions required for the note consumption, i.e. the target
 /// account of a P2ID or conditions of a SWAP, and the effects of the note. The serial number has
 /// a double duty of preventing double spend, and providing unlikability to the consumer of a note.
-/// The note's inputs allow for customization of its script.
+/// The note's storage allows for customization of its script.
 ///
 /// To create a note, the kernel does not require all the information above, a user can create a
-/// note only with the commitment to the script, inputs, the serial number (i.e., the recipient),
+/// note only with the commitment to the script, storage, the serial number (i.e., the recipient),
 /// and the kernel only verifies the source account has the assets necessary for the note creation.
 /// See [NoteRecipient] for more details.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -140,9 +142,9 @@ impl Note {
         self.details.script()
     }
 
-    /// Returns the note's recipient inputs which customizes the script's behavior.
-    pub fn inputs(&self) -> &NoteInputs {
-        self.details.inputs()
+    /// Returns the note's recipient storage which customizes the script's behavior.
+    pub fn storage(&self) -> &NoteStorage {
+        self.details.storage()
     }
 
     /// Returns the note's recipient.
@@ -164,7 +166,22 @@ impl Note {
     /// This value is used primarily for authenticating notes consumed when the are consumed
     /// in a transaction.
     pub fn commitment(&self) -> Word {
-        self.header.commitment()
+        self.header.to_commitment()
+    }
+
+    // MUTATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Reduces the size of the note script by stripping all debug info from it.
+    pub fn minify_script(&mut self) {
+        self.details.minify_script();
+    }
+
+    /// Consumes self and returns the underlying parts of the [`Note`].
+    pub fn into_parts(self) -> (NoteAssets, NoteMetadata, NoteRecipient) {
+        let (assets, recipient) = self.details.into_parts();
+        let metadata = self.header.into_metadata();
+        (assets, metadata, recipient)
     }
 }
 
@@ -221,6 +238,10 @@ impl Serializable for Note {
         // only metadata is serialized as note ID can be computed from note details
         header.metadata().write_into(target);
         details.write_into(target);
+    }
+
+    fn get_size_hint(&self) -> usize {
+        self.header.metadata().get_size_hint() + self.details.get_size_hint()
     }
 }
 

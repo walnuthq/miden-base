@@ -1,13 +1,17 @@
-use miden_processor::DeserializationError;
-
-use super::{NoteAssets, NoteId, NoteInputs, NoteRecipient, NoteScript, Nullifier};
+use super::{NoteAssets, NoteId, NoteRecipient, NoteScript, NoteStorage, Nullifier};
 use crate::Word;
-use crate::utils::serde::{ByteReader, ByteWriter, Deserializable, Serializable};
+use crate::utils::serde::{
+    ByteReader,
+    ByteWriter,
+    Deserializable,
+    DeserializationError,
+    Serializable,
+};
 
 // NOTE DETAILS
 // ================================================================================================
 
-/// Details of a note consisting of assets, script, inputs, and a serial number.
+/// Details of a note consisting of assets, script, storage, and a serial number.
 ///
 /// See [super::Note] for more details.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,9 +54,9 @@ impl NoteDetails {
         self.recipient.script()
     }
 
-    /// Returns the note's recipient inputs which customizes the script's behavior.
-    pub fn inputs(&self) -> &NoteInputs {
-        self.recipient.inputs()
+    /// Returns the note's recipient storage which customizes the script's behavior.
+    pub fn storage(&self) -> &NoteStorage {
+        self.recipient.storage()
     }
 
     /// Returns the note's recipient.
@@ -65,6 +69,14 @@ impl NoteDetails {
     /// This is public data, used to prevent double spend.
     pub fn nullifier(&self) -> Nullifier {
         Nullifier::from(self)
+    }
+
+    // MUTATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Reduces the size of the note script by stripping all debug info from it.
+    pub fn minify_script(&mut self) {
+        self.recipient.minify_script();
     }
 
     /// Decomposes note details into underlying assets and recipient.
@@ -91,6 +103,10 @@ impl Serializable for NoteDetails {
 
         assets.write_into(target);
         recipient.write_into(target);
+    }
+
+    fn get_size_hint(&self) -> usize {
+        self.assets.get_size_hint() + self.recipient.get_size_hint()
     }
 }
 

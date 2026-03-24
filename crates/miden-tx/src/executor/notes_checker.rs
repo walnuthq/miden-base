@@ -1,7 +1,7 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use miden_processor::fast::FastProcessor;
+use miden_processor::advice::AdviceInputs;
 use miden_protocol::account::AccountId;
 use miden_protocol::block::BlockNumber;
 use miden_protocol::note::Note;
@@ -12,10 +12,9 @@ use miden_protocol::transaction::{
     TransactionInputs,
     TransactionKernel,
 };
-use miden_prover::AdviceInputs;
-use miden_standards::note::{NoteConsumptionStatus, WellKnownNote};
+use miden_standards::note::{NoteConsumptionStatus, StandardNote};
 
-use super::TransactionExecutor;
+use super::{ProgramExecutor, TransactionExecutor};
 use crate::auth::TransactionAuthenticator;
 use crate::errors::TransactionCheckerError;
 use crate::executor::map_execution_error;
@@ -73,15 +72,18 @@ impl NoteConsumptionInfo {
 /// The check is performed using the [NoteConsumptionChecker::check_notes_consumability] procedure.
 /// Essentially runs the transaction to make sure that provided input notes could be consumed by the
 /// account.
-pub struct NoteConsumptionChecker<'a, STORE, AUTH>(&'a TransactionExecutor<'a, 'a, STORE, AUTH>);
+pub struct NoteConsumptionChecker<'a, STORE, AUTH, EXEC: ProgramExecutor>(
+    &'a TransactionExecutor<'a, 'a, STORE, AUTH, EXEC>,
+);
 
-impl<'a, STORE, AUTH> NoteConsumptionChecker<'a, STORE, AUTH>
+impl<'a, STORE, AUTH, EXEC> NoteConsumptionChecker<'a, STORE, AUTH, EXEC>
 where
     STORE: DataStore + Sync,
     AUTH: TransactionAuthenticator + Sync,
+    EXEC: ProgramExecutor,
 {
     /// Creates a new [`NoteConsumptionChecker`] instance with the given transaction executor.
-    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH>) -> Self {
+    pub fn new(tx_executor: &'a TransactionExecutor<'a, 'a, STORE, AUTH, EXEC>) -> Self {
         NoteConsumptionChecker(tx_executor)
     }
 
@@ -120,8 +122,10 @@ where
         if num_notes == 0 || num_notes > MAX_NUM_CHECKER_NOTES {
             return Err(NoteCheckerError::InputNoteCountOutOfRange(num_notes));
         }
-        // Ensure well-known notes are ordered first.
-        notes.sort_unstable_by_key(|note| WellKnownNote::from_note(note).is_none());
+        // Ensure standard notes are ordered first.
+        notes.sort_unstable_by_key(|note| {
+            StandardNote::from_script_root(note.script().root()).is_none()
+        });
 
         let notes = InputNotes::from(notes);
         let tx_inputs = self
@@ -152,10 +156,10 @@ where
         note: InputNote,
         tx_args: TransactionArgs,
     ) -> Result<NoteConsumptionStatus, NoteCheckerError> {
-        // return the consumption status if we manage to determine it from the well-known note
-        if let Some(well_known_note) = WellKnownNote::from_note(note.note())
+        // Return the consumption status if we manage to determine it from the standard note
+        if let Some(standard_note) = StandardNote::from_script_root(note.note().script().root())
             && let Some(consumption_status) =
-                well_known_note.is_consumable(note.note(), target_account_id, block_ref)
+                standard_note.is_consumable(note.note(), target_account_id, block_ref)
         {
             return Ok(consumption_status);
         }
@@ -335,8 +339,7 @@ where
                 .await
                 .map_err(TransactionCheckerError::TransactionPreparation)?;
 
-        let processor =
-            FastProcessor::new_with_advice_inputs(stack_inputs.as_slice(), advice_inputs);
+        let processor = EXEC::new(stack_inputs, advice_inputs, self.0.exec_options);
         let result = processor
             .execute(&TransactionKernel::main(), &mut host)
             .await

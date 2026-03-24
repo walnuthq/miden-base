@@ -1,10 +1,10 @@
 use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use miden_core::utils::{Deserializable, Serializable};
-use miden_crypto::merkle::NodeIndex;
-use miden_crypto::merkle::smt::{LeafIndex, SmtLeaf, SmtProof};
+use miden_crypto::merkle::smt::{SmtLeaf, SmtProof};
+use miden_crypto::merkle::{MerkleError, NodeIndex};
 
 use super::PartialBlockchain;
 use crate::account::{
@@ -14,18 +14,25 @@ use crate::account::{
     AccountStorageHeader,
     PartialAccount,
     PartialStorage,
-    StorageMap,
+    StorageMapKey,
     StorageMapWitness,
     StorageSlotId,
     StorageSlotName,
 };
-use crate::asset::{AssetVaultKey, AssetWitness, PartialVault};
-use crate::block::account_tree::{AccountWitness, account_id_to_smt_index};
+use crate::asset::{Asset, AssetVaultKey, AssetWitness, PartialVault};
+use crate::block::account_tree::{AccountIdKey, AccountWitness};
 use crate::block::{BlockHeader, BlockNumber};
 use crate::crypto::merkle::SparseMerklePath;
 use crate::errors::{TransactionInputError, TransactionInputsExtractionError};
 use crate::note::{Note, NoteInclusionProof};
-use crate::transaction::{TransactionAdviceInputs, TransactionArgs, TransactionScript};
+use crate::transaction::{TransactionArgs, TransactionScript};
+use crate::utils::serde::{
+    ByteReader,
+    ByteWriter,
+    Deserializable,
+    DeserializationError,
+    Serializable,
+};
 use crate::{Felt, Word};
 
 #[cfg(test)]
@@ -35,8 +42,9 @@ mod account;
 pub use account::AccountInputs;
 
 mod notes;
-use miden_processor::{AdviceInputs, SMT_DEPTH};
 pub use notes::{InputNote, InputNotes, ToInputNoteCommitments};
+
+use crate::vm::AdviceInputs;
 
 // TRANSACTION INPUTS
 // ================================================================================================
@@ -51,8 +59,6 @@ pub struct TransactionInputs {
     tx_args: TransactionArgs,
     advice_inputs: AdviceInputs,
     foreign_account_code: Vec<AccountCode>,
-    /// Pre-fetched asset witnesses for note assets and the fee asset.
-    asset_witnesses: Vec<AssetWitness>,
     /// Storage slot names for foreign accounts.
     foreign_account_slot_names: BTreeMap<StorageSlotId, StorageSlotName>,
 }
@@ -110,14 +116,21 @@ impl TransactionInputs {
             tx_args: TransactionArgs::default(),
             advice_inputs: AdviceInputs::default(),
             foreign_account_code: Vec::new(),
-            asset_witnesses: Vec::new(),
             foreign_account_slot_names: BTreeMap::new(),
         })
     }
 
     /// Replaces the transaction inputs and assigns the given asset witnesses.
     pub fn with_asset_witnesses(mut self, witnesses: Vec<AssetWitness>) -> Self {
-        self.asset_witnesses = witnesses;
+        for witness in witnesses {
+            self.advice_inputs.store.extend(witness.authenticated_nodes());
+            let smt_proof = SmtProof::from(witness);
+            self.advice_inputs.map.extend([(
+                smt_proof.leaf().hash(),
+                smt_proof.leaf().to_elements().collect::<Arc<[Felt]>>(),
+            )]);
+        }
+
         self
     }
 
@@ -210,11 +223,6 @@ impl TransactionInputs {
         &self.foreign_account_code
     }
 
-    /// Returns the pre-fetched witnesses for note and fee assets.
-    pub fn asset_witnesses(&self) -> &[AssetWitness] {
-        &self.asset_witnesses
-    }
-
     /// Returns the foreign account storage slot names.
     pub fn foreign_account_slot_names(&self) -> &BTreeMap<StorageSlotId, StorageSlotName> {
         &self.foreign_account_slot_names
@@ -237,10 +245,10 @@ impl TransactionInputs {
     pub fn read_storage_map_witness(
         &self,
         map_root: Word,
-        map_key: Word,
+        map_key: StorageMapKey,
     ) -> Result<StorageMapWitness, TransactionInputsExtractionError> {
         // Convert map key into the index at which the key-value pair for this key is stored
-        let leaf_index = StorageMap::map_key_to_leaf_index(map_key);
+        let leaf_index = map_key.hash().to_leaf_index();
 
         // Construct sparse Merkle path.
         let merkle_path = self.advice_inputs.store.get_path(map_root, leaf_index.into())?;
@@ -253,7 +261,7 @@ impl TransactionInputs {
             .map
             .get(&merkle_node)
             .ok_or(TransactionInputsExtractionError::MissingVaultRoot)?;
-        let smt_leaf = smt_leaf_from_elements(smt_leaf_elements, leaf_index)?;
+        let smt_leaf = SmtLeaf::try_from_elements(smt_leaf_elements, leaf_index)?;
 
         // Construct SMT proof and witness.
         let smt_proof = SmtProof::new(sparse_path, smt_leaf)?;
@@ -263,6 +271,12 @@ impl TransactionInputs {
     }
 
     /// Reads the vault asset witnesses for the given account and vault keys.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - A Merkle tree with the specified root is not present in the advice data of these inputs.
+    /// - Witnesses for any of the requested assets are not in the specified Merkle tree.
+    /// - Construction of the Merkle path or the leaf node for the witness fails.
     pub fn read_vault_asset_witnesses(
         &self,
         vault_root: Word,
@@ -282,7 +296,7 @@ impl TransactionInputs {
                 .map
                 .get(&merkle_node)
                 .ok_or(TransactionInputsExtractionError::MissingVaultRoot)?;
-            let smt_leaf = smt_leaf_from_elements(smt_leaf_elements, smt_index)?;
+            let smt_leaf = SmtLeaf::try_from_elements(smt_leaf_elements, smt_index)?;
 
             // Construct SMT proof and witness.
             let smt_proof = SmtProof::new(sparse_path, smt_leaf)?;
@@ -292,12 +306,70 @@ impl TransactionInputs {
         Ok(asset_witnesses)
     }
 
-    /// Reads AccountInputs for a foreign account from the advice inputs.
+    /// Returns true if the witness for the specified asset key is present in these inputs.
     ///
-    /// This function reverses the process of [`TransactionAdviceInputs::add_foreign_accounts`] by:
+    /// Note that this does not verify the witness' validity (i.e., that the witness is for a valid
+    /// asset).
+    pub fn has_vault_asset_witness(&self, vault_root: Word, asset_key: &AssetVaultKey) -> bool {
+        let smt_index: NodeIndex = asset_key.to_leaf_index().into();
+
+        // make sure the path is in the Merkle store
+        if !self.advice_inputs.store.has_path(vault_root, smt_index) {
+            return false;
+        }
+
+        // make sure the node pre-image is in the Merkle store
+        match self.advice_inputs.store.get_node(vault_root, smt_index) {
+            Ok(node) => self.advice_inputs.map.contains_key(&node),
+            Err(_) => false,
+        }
+    }
+
+    /// Reads the asset from the specified vault under the specified key; returns `None` if the
+    /// specified asset is not present in these inputs.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - A Merkle tree with the specified root is not present in the advice data of these inputs.
+    /// - Construction of the leaf node or the asset fails.
+    pub fn read_vault_asset(
+        &self,
+        vault_root: Word,
+        asset_key: AssetVaultKey,
+    ) -> Result<Option<Asset>, TransactionInputsExtractionError> {
+        // Get the node corresponding to the asset_key; if not found return None
+        let smt_index = asset_key.to_leaf_index();
+        let merkle_node = match self.advice_inputs.store.get_node(vault_root, smt_index.into()) {
+            Ok(node) => node,
+            Err(MerkleError::NodeIndexNotFoundInStore(..)) => return Ok(None),
+            Err(err) => return Err(err.into()),
+        };
+
+        // Construct SMT leaf for this asset key
+        let smt_leaf_elements = self
+            .advice_inputs
+            .map
+            .get(&merkle_node)
+            .ok_or(TransactionInputsExtractionError::MissingVaultRoot)?;
+        let smt_leaf = SmtLeaf::try_from_elements(smt_leaf_elements, smt_index)?;
+
+        // Find the asset in the SMT leaf
+        let asset = smt_leaf
+            .entries()
+            .iter()
+            .find(|(key, _value)| key == &asset_key.to_word())
+            .map(|(_key, value)| Asset::from_key_value(asset_key, *value))
+            .transpose()?;
+
+        Ok(asset)
+    }
+
+    /// Reads `AccountInputs` for a foreign account from the advice inputs.
+    ///
+    /// This function reverses the process of `TransactionAdviceInputs::add_foreign_accounts` by:
     /// 1. Reading the account header from the advice map using the account_id_key.
-    /// 2. Building a PartialAccount from the header and foreign account code.
-    /// 3. Creating an AccountWitness.
+    /// 2. Building a `PartialAccount` from the header and foreign account code.
+    /// 3. Creating an `AccountWitness`.
     pub fn read_foreign_account_inputs(
         &self,
         account_id: AccountId,
@@ -307,11 +379,11 @@ impl TransactionInputs {
         }
 
         // Read the account header elements from the advice map.
-        let account_id_key = TransactionAdviceInputs::account_id_map_key(account_id);
+        let account_id_key = AccountIdKey::from(account_id);
         let header_elements = self
             .advice_inputs
             .map
-            .get(&account_id_key)
+            .get(&account_id_key.as_word())
             .ok_or(TransactionInputsExtractionError::ForeignAccountNotFound(account_id))?;
 
         // Parse the header from elements.
@@ -377,7 +449,7 @@ impl TransactionInputs {
     ) -> Result<AccountWitness, TransactionInputsExtractionError> {
         // Get the account tree root from the block header.
         let account_tree_root = self.block_header.account_root();
-        let leaf_index: NodeIndex = account_id_to_smt_index(header.id()).into();
+        let leaf_index = AccountIdKey::from(header.id()).to_leaf_index().into();
 
         // Get the Merkle path from the merkle store.
         let merkle_path = self.advice_inputs.store.get_path(account_tree_root, leaf_index)?;
@@ -386,7 +458,7 @@ impl TransactionInputs {
         let sparse_path = SparseMerklePath::from_sized_iter(merkle_path.path)?;
 
         // Create the account witness.
-        let witness = AccountWitness::new(header.id(), header.commitment(), sparse_path)?;
+        let witness = AccountWitness::new(header.id(), header.to_commitment(), sparse_path)?;
 
         Ok(witness)
     }
@@ -424,7 +496,7 @@ impl TransactionInputs {
 // ================================================================================================
 
 impl Serializable for TransactionInputs {
-    fn write_into<W: miden_core::utils::ByteWriter>(&self, target: &mut W) {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
         self.account.write_into(target);
         self.block_header.write_into(target);
         self.blockchain.write_into(target);
@@ -432,15 +504,12 @@ impl Serializable for TransactionInputs {
         self.tx_args.write_into(target);
         self.advice_inputs.write_into(target);
         self.foreign_account_code.write_into(target);
-        self.asset_witnesses.write_into(target);
         self.foreign_account_slot_names.write_into(target);
     }
 }
 
 impl Deserializable for TransactionInputs {
-    fn read_from<R: miden_core::utils::ByteReader>(
-        source: &mut R,
-    ) -> Result<Self, miden_core::utils::DeserializationError> {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let account = PartialAccount::read_from(source)?;
         let block_header = BlockHeader::read_from(source)?;
         let blockchain = PartialBlockchain::read_from(source)?;
@@ -448,7 +517,6 @@ impl Deserializable for TransactionInputs {
         let tx_args = TransactionArgs::read_from(source)?;
         let advice_inputs = AdviceInputs::read_from(source)?;
         let foreign_account_code = Vec::<AccountCode>::read_from(source)?;
-        let asset_witnesses = Vec::<AssetWitness>::read_from(source)?;
         let foreign_account_slot_names =
             BTreeMap::<StorageSlotId, StorageSlotName>::read_from(source)?;
 
@@ -460,7 +528,6 @@ impl Deserializable for TransactionInputs {
             tx_args,
             advice_inputs,
             foreign_account_code,
-            asset_witnesses,
             foreign_account_slot_names,
         })
     }
@@ -469,65 +536,13 @@ impl Deserializable for TransactionInputs {
 // HELPER FUNCTIONS
 // ================================================================================================
 
-// TODO(sergerad): Move this fn to crypto SmtLeaf::try_from_elements.
-pub fn smt_leaf_from_elements(
-    elements: &[Felt],
-    leaf_index: LeafIndex<SMT_DEPTH>,
-) -> Result<SmtLeaf, TransactionInputsExtractionError> {
-    use miden_crypto::merkle::smt::SmtLeaf;
-
-    // Based on the miden-crypto SMT leaf serialization format.
-
-    if elements.is_empty() {
-        return Ok(SmtLeaf::new_empty(leaf_index));
-    }
-
-    // Elements should be organized into a contiguous array of K/V Words (4 Felts each).
-    if !elements.len().is_multiple_of(8) {
-        return Err(TransactionInputsExtractionError::LeafConversionError(
-            "invalid SMT leaf format: elements length must be divisible by 8".into(),
-        ));
-    }
-
-    let num_entries = elements.len() / 8;
-
-    if num_entries == 1 {
-        // Single entry.
-        let key = Word::new([elements[0], elements[1], elements[2], elements[3]]);
-        let value = Word::new([elements[4], elements[5], elements[6], elements[7]]);
-        Ok(SmtLeaf::new_single(key, value))
-    } else {
-        // Multiple entries.
-        let mut entries = Vec::with_capacity(num_entries);
-        // Read k/v pairs from each entry.
-        for i in 0..num_entries {
-            let base_idx = i * 8;
-            let key = Word::new([
-                elements[base_idx],
-                elements[base_idx + 1],
-                elements[base_idx + 2],
-                elements[base_idx + 3],
-            ]);
-            let value = Word::new([
-                elements[base_idx + 4],
-                elements[base_idx + 5],
-                elements[base_idx + 6],
-                elements[base_idx + 7],
-            ]);
-            entries.push((key, value));
-        }
-        let leaf = SmtLeaf::new_multiple(entries)?;
-        Ok(leaf)
-    }
-}
-
 /// Validates whether the provided note belongs to the note tree of the specified block.
 fn validate_is_in_block(
     note: &Note,
     proof: &NoteInclusionProof,
     block_header: &BlockHeader,
 ) -> Result<(), TransactionInputError> {
-    let note_index = proof.location().node_index_in_block().into();
+    let note_index = proof.location().block_note_tree_index().into();
     let note_commitment = note.commitment();
     proof
         .note_path()

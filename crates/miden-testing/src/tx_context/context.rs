@@ -3,12 +3,13 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-use miden_processor::fast::ExecutionOutput;
-use miden_processor::{ExecutionError, FutureMaybeSend, MastForest, MastForestStore, Word};
+use miden_processor::mast::MastForest;
+use miden_processor::{ExecutionOutput, FutureMaybeSend, MastForestStore, Word};
 use miden_protocol::account::{
     Account,
     AccountId,
     PartialAccount,
+    StorageMapKey,
     StorageMapWitness,
     StorageSlotContent,
 };
@@ -43,6 +44,7 @@ use miden_tx::{
 
 use crate::executor::CodeExecutor;
 use crate::mock_host::MockHost;
+use crate::tx_context::ExecError;
 
 // TRANSACTION CONTEXT
 // ================================================================================================
@@ -73,10 +75,6 @@ impl TransactionContext {
     /// is run on a modified [`TransactionExecutorHost`] which is loaded with the procedures exposed
     /// by the transaction kernel, and also individual kernel functions (not normally exposed).
     ///
-    /// To improve the error message quality, convert the returned [`ExecutionError`] into a
-    /// [`Report`](miden_protocol::assembly::diagnostics::Report) or use `?` with
-    /// [`miden_protocol::assembly::diagnostics::Result`].
-    ///
     /// # Errors
     ///
     /// Returns an error if the assembly or execution of the provided code fails.
@@ -84,7 +82,7 @@ impl TransactionContext {
     /// # Panics
     ///
     /// - If the provided `code` is not a valid program.
-    pub async fn execute_code(&self, code: &str) -> Result<ExecutionOutput, ExecutionError> {
+    pub async fn execute_code(&self, code: &str) -> Result<ExecutionOutput, ExecError> {
         // Fetch all witnesses for note assets and the fee asset.
         let mut asset_vault_keys = self
             .tx_inputs
@@ -92,7 +90,7 @@ impl TransactionContext {
             .iter()
             .flat_map(|note| note.note().assets().iter().map(Asset::vault_key))
             .collect::<BTreeSet<_>>();
-        let fee_asset_vault_key = AssetVaultKey::from_account_id(
+        let fee_asset_vault_key = AssetVaultKey::new_fungible(
             self.tx_inputs().block_header().fee_parameters().native_asset_id(),
         )
         .expect("fee asset should be a fungible asset");
@@ -109,7 +107,7 @@ impl TransactionContext {
         // Add the vault key for the fee asset to the list of asset vault keys which may need to be
         // accessed at the end of the transaction.
         let fee_asset_vault_key =
-            AssetVaultKey::from_account_id(block_header.fee_parameters().native_asset_id())
+            AssetVaultKey::new_fungible(block_header.fee_parameters().native_asset_id())
                 .expect("fee asset should be a fungible asset");
         asset_vault_keys.insert(fee_asset_vault_key);
 
@@ -330,7 +328,7 @@ impl DataStore for TransactionContext {
         &self,
         account_id: AccountId,
         map_root: Word,
-        map_key: Word,
+        map_key: StorageMapKey,
     ) -> impl FutureMaybeSend<Result<StorageMapWitness, DataStoreError>> {
         async move {
             if account_id == self.account().id() {
