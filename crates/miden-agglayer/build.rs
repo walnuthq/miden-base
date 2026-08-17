@@ -23,6 +23,7 @@ use miden_protocol_build_utils::{
     assemble_workspace,
     extract_all_masm_errors,
     generate_error_file,
+    generate_error_message_table,
 };
 use miden_standards::StandardsLib;
 use miden_standards::account::access::{AccessControl, Pausable, PausableManager};
@@ -50,6 +51,7 @@ const ASM_AGGLAYER_BRIDGE_DIR: &str = "agglayer/bridge";
 
 const AGGLAYER_ERRORS_RS_FILE: &str = "agglayer_errors.rs";
 const AGGLAYER_ERRORS_ARRAY_NAME: &str = "AGGLAYER_ERRORS";
+const MASM_ERROR_MESSAGES_RS_FILE: &str = "masm_error_messages.rs";
 const AGGLAYER_GLOBAL_CONSTANTS_FILE_NAME: &str = "agglayer_constants.rs";
 
 // PRE-PROCESSING
@@ -287,6 +289,7 @@ fn generate_error_constants(asm_source_dir: &Path, build_dir: &str) -> Result<()
 
     let errors =
         extract_all_masm_errors(asm_source_dir).context("failed to extract all masm errors")?;
+    generate_error_message_table(Path::new(build_dir).join(MASM_ERROR_MESSAGES_RS_FILE), &errors)?;
     generate_error_file(
         ErrorModule {
             file_path: Path::new(build_dir).join(AGGLAYER_ERRORS_RS_FILE),

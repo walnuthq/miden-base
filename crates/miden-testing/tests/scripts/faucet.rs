@@ -31,6 +31,7 @@ use miden_protocol::note::{
 };
 use miden_protocol::testing::account_id::{ACCOUNT_ID_FEE_FAUCET, ACCOUNT_ID_PRIVATE_SENDER};
 use miden_protocol::transaction::{ExecutedTransaction, RawOutputNote};
+use miden_protocol::utils::serde::{Deserializable, Serializable};
 use miden_protocol::{Felt, Word};
 use miden_standards::account::access::{Authority, Ownable2Step, Pausable};
 use miden_standards::account::auth::SponsorshipPolicy;
@@ -550,6 +551,51 @@ async fn faucet_contract_mint_fungible_asset_fails_exceeds_max_supply() -> anyho
         .await;
 
     assert_transaction_executor_error!(tx, ERR_FUNGIBLE_ASSET_DISTRIBUTE_AMOUNT_EXCEEDS_MAX_SUPPLY);
+    Ok(())
+}
+
+/// Tests that an assertion raised by account code renders its error message and not just its error
+/// code, even when the account was deserialized and thus lost the debug info of its code.
+#[tokio::test]
+async fn faucet_mint_failure_renders_masm_error_message() -> anyhow::Result<()> {
+    let mut builder = MockChain::builder();
+    let faucet = builder.add_existing_basic_faucet(
+        Auth::BasicAuth {
+            auth_scheme: AuthScheme::Falcon512Poseidon2,
+        },
+        "TST",
+        200,
+        None,
+    )?;
+    let faucet = Account::read_from_bytes(&faucet.to_bytes())?;
+    builder.add_account(faucet.clone())?;
+    let mock_chain = builder.build()?;
+
+    let params = FaucetTestParams {
+        recipient: Word::from([0, 1, 2, 3u32]),
+        tag: NoteTag::from(4u32),
+        note_type: NoteType::Private,
+        amount: Felt::new_unchecked(250),
+    };
+
+    let tx_script =
+        CodeBuilder::default().compile_tx_script(create_mint_script_code(&params, faucet.id()))?;
+    let Err(error) = mock_chain
+        .build_transaction(faucet.id())
+        .tx_script(tx_script)
+        .build()?
+        .execute()
+        .await
+    else {
+        anyhow::bail!("minting beyond the max supply should fail");
+    };
+
+    let rendered = error.to_string();
+    assert!(
+        rendered.contains(ERR_FUNGIBLE_ASSET_DISTRIBUTE_AMOUNT_EXCEEDS_MAX_SUPPLY.message()),
+        "rendered error should contain the masm error message, but was: {rendered}"
+    );
+
     Ok(())
 }
 

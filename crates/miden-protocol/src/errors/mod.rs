@@ -63,6 +63,9 @@ mod masm_error;
 #[cfg(any(feature = "testing", test))]
 pub use masm_error::MasmError;
 
+mod masm_error_table;
+pub use masm_error_table::{PROTOCOL_MASM_ERROR_MESSAGES, masm_error_message_from_table};
+
 /// The errors from the MASM code of the transaction kernel.
 #[cfg(any(feature = "testing", test))]
 pub mod tx_kernel {
