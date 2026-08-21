@@ -22,11 +22,11 @@ mod tests {
     use miden_protocol::errors::masm_error_message_from_table;
 
     use super::STANDARDS_MASM_ERROR_MESSAGES;
-    use super::standards::ERR_FUNGIBLE_MINT_NOTE_ASSET_NOT_FROM_THIS_FAUCET;
+    use super::standards::ERR_MINT_NOTE_ASSET_NOT_FROM_THIS_FAUCET;
 
     #[test]
     fn error_message_table_resolves_standards_error() {
-        let error = ERR_FUNGIBLE_MINT_NOTE_ASSET_NOT_FROM_THIS_FAUCET;
+        let error = ERR_MINT_NOTE_ASSET_NOT_FROM_THIS_FAUCET;
         let message = masm_error_message_from_table(
             STANDARDS_MASM_ERROR_MESSAGES,
             error.code().as_canonical_u64(),
