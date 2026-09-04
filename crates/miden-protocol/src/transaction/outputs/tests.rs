@@ -197,7 +197,7 @@ fn oversized_public_note_triggers_size_limit_error() -> anyhow::Result<()> {
         "Expected note size ({computed_note_size}) to exceed NOTE_MAX_SIZE ({NOTE_MAX_SIZE})"
     );
     let mut minified_note = oversized_note.clone();
-    minified_note.clear_debug_info();
+    minified_note.retain_error_messages_only();
     let minified_note_size = minified_note.get_size_hint();
     assert!(
         minified_note_size > NOTE_MAX_SIZE as usize,

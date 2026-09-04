@@ -16,7 +16,6 @@ use miden_protocol_build_utils::{
     extract_all_masm_errors,
     extract_all_masm_events,
     generate_error_file,
-    generate_error_message_table,
     generate_event_file,
 };
 use regex::Regex;
@@ -45,7 +44,6 @@ const KERNEL_PROCEDURES_RS_FILE: &str = "procedures.rs";
 const TX_EVENTS_RS_FILE: &str = "transaction_events.rs";
 const TX_KERNEL_ERRORS_RS_FILE: &str = "tx_kernel_errors.rs";
 const PROTOCOL_LIB_ERRORS_RS_FILE: &str = "protocol_errors.rs";
-const MASM_ERROR_MESSAGES_RS_FILE: &str = "masm_error_messages.rs";
 
 const TX_KERNEL_ERRORS_ARRAY_NAME: &str = "TX_KERNEL_ERRORS";
 const PROTOCOL_LIB_ERRORS_ARRAY_NAME: &str = "PROTOCOL_LIB_ERRORS";
@@ -342,8 +340,6 @@ fn generate_error_constants(asm_source_dir: &Path, build_dir: &str) -> Result<()
     errors.extend_from_slice(&shared_utils_errors);
     validate_tx_kernel_category(&errors)?;
 
-    let mut all_errors = errors.clone();
-
     generate_error_file(
         ErrorModule {
             file_path: Path::new(build_dir).join(TX_KERNEL_ERRORS_RS_FILE),
@@ -361,8 +357,6 @@ fn generate_error_constants(asm_source_dir: &Path, build_dir: &str) -> Result<()
         extract_all_masm_errors(&protocol_dir).context("failed to extract all masm errors")?;
     errors.extend(shared_utils_errors);
 
-    all_errors.extend_from_slice(&errors);
-
     generate_error_file(
         ErrorModule {
             file_path: Path::new(build_dir).join(PROTOCOL_LIB_ERRORS_RS_FILE),
@@ -370,14 +364,6 @@ fn generate_error_constants(asm_source_dir: &Path, build_dir: &str) -> Result<()
             is_crate_local: true,
         },
         errors,
-    )?;
-
-    // Error message table
-    // ------------------------------------------
-
-    generate_error_message_table(
-        Path::new(build_dir).join(MASM_ERROR_MESSAGES_RS_FILE),
-        &all_errors,
     )?;
 
     Ok(())

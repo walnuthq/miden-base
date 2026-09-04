@@ -24,7 +24,7 @@ use miden_protocol::{Felt, MAX_TX_EXECUTION_CYCLES, MIN_TX_EXECUTION_CYCLES};
 
 use super::TransactionExecutorError;
 use crate::auth::TransactionAuthenticator;
-use crate::errors::{TransactionKernelError, resolve_masm_error_message};
+use crate::errors::TransactionKernelError;
 use crate::host::{AccountProcedureIndexMap, ScriptMastForestStore};
 
 mod exec_host;
@@ -264,11 +264,7 @@ where
                 &mut host,
             )
             .await
-            .map_err(|error| {
-                TransactionExecutorError::TransactionProgramExecutionFailed(
-                    resolve_masm_error_message(error),
-                )
-            })?;
+            .map_err(TransactionExecutorError::TransactionProgramExecutionFailed)?;
         let stack_outputs = output.stack;
 
         Ok(*stack_outputs)
@@ -482,8 +478,7 @@ fn validate_num_cycles(num_cycles: u32) -> Result<(), TransactionExecutorError> 
 ///   [`TransactionKernelError::PrivilegedEventFromOutsideTransactionKernelContext`], it is remapped
 ///   to [`TransactionExecutorError::PrivilegedEventFromOutsideTransactionKernelContext`].
 /// - Otherwise, the execution error is wrapped in
-///   [`TransactionExecutorError::TransactionProgramExecutionFailed`], with the message of a failed
-///   assertion resolved if it is missing.
+///   [`TransactionExecutorError::TransactionProgramExecutionFailed`].
 fn map_execution_error(exec_err: ExecutionError) -> TransactionExecutorError {
     match exec_err {
         ExecutionError::EventError { ref error, .. } => {
@@ -507,8 +502,6 @@ fn map_execution_error(exec_err: ExecutionError) -> TransactionExecutorError {
                 _ => TransactionExecutorError::TransactionProgramExecutionFailed(exec_err),
             }
         },
-        exec_err => TransactionExecutorError::TransactionProgramExecutionFailed(
-            resolve_masm_error_message(exec_err),
-        ),
+        _ => TransactionExecutorError::TransactionProgramExecutionFailed(exec_err),
     }
 }

@@ -17,7 +17,6 @@ pub use miden_prover::ProvingOptions;
 use miden_prover::{ExecutionProof, Word, prove_sync};
 
 use super::TransactionProverError;
-use crate::errors::resolve_masm_error_message;
 use crate::host::{AccountProcedureIndexMap, ScriptMastForestStore};
 
 mod prover_host;
@@ -152,11 +151,7 @@ impl LocalTransactionProver {
             ExecutionOptions::default(),
             self.proof_options.clone(),
         )
-        .map_err(|error| {
-            TransactionProverError::TransactionProgramExecutionFailed(resolve_masm_error_message(
-                error,
-            ))
-        })?;
+        .map_err(TransactionProverError::TransactionProgramExecutionFailed)?;
 
         // Extract transaction outputs and process transaction data.
         let (account_patch, input_notes, output_notes) = host.into_parts();

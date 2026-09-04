@@ -494,8 +494,8 @@ impl PublicOutputNote {
             return Err(OutputNoteError::NoteIsPrivate(note.id()));
         }
 
-        // Remove debug info from the note script (if any)
-        note.clear_debug_info();
+        // Strip debug info from the note script, keeping only the assertion error messages
+        note.retain_error_messages_only();
 
         // Check the size limit after stripping decorators
         let note_size = note.get_size_hint();

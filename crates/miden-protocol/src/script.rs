@@ -9,7 +9,14 @@ use miden_processor::LoadedMastForest;
 use thiserror::Error;
 
 use crate::assembly::Path;
-use crate::package::{loaded_mast_forest, package_debug_info};
+use crate::package::{
+    error_messages_only,
+    error_messages_size_hint,
+    loaded_mast_forest,
+    package_debug_info,
+    read_error_messages,
+    write_error_messages,
+};
 use crate::utils::create_external_node_forest;
 use crate::utils::serde::{
     ByteReader,
@@ -173,9 +180,10 @@ impl MastForestScript {
         self.entrypoint
     }
 
-    /// Removes debug info from this program, if any.
-    pub fn clear_debug_info(&mut self) {
-        self.package_debug_info = None;
+    /// Removes all debug info from this program except the assertion error messages, which are
+    /// needed to report a failed assertion with its message.
+    pub fn retain_error_messages_only(&mut self) {
+        self.package_debug_info = error_messages_only(self.package_debug_info.as_deref());
     }
 
     /// Returns a new [MastForestScript] with the package-owned debug information of the provided
@@ -216,6 +224,7 @@ impl Serializable for MastForestScript {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         self.mast.write_into(target);
         target.write_u32(u32::from(self.entrypoint));
+        write_error_messages(self.package_debug_info.as_deref(), target);
     }
 
     fn get_size_hint(&self) -> usize {
@@ -225,7 +234,7 @@ impl Serializable for MastForestScript {
         let mast_size = self.mast.to_bytes().len();
         let u32_size = 0u32.get_size_hint();
 
-        mast_size + u32_size
+        mast_size + u32_size + error_messages_size_hint(self.package_debug_info.as_deref())
     }
 }
 
@@ -234,7 +243,10 @@ impl Deserializable for MastForestScript {
         let mast = MastForest::read_from(source)?;
         let entrypoint = MastNodeId::from_u32_safe(source.read_u32()?, &mast)?;
 
-        Self::from_parts(Arc::new(mast), entrypoint)
-            .map_err(|e| DeserializationError::InvalidValue(e.to_string()))
+        let mut script = Self::from_parts(Arc::new(mast), entrypoint)
+            .map_err(|e| DeserializationError::InvalidValue(e.to_string()))?;
+        script.package_debug_info = read_error_messages(source)?;
+
+        Ok(script)
     }
 }

@@ -20,7 +20,13 @@ use super::{
 };
 use crate::Word;
 use crate::account::{AccountCodeInterface, AccountComponent, AccountId};
-use crate::package::{loaded_mast_forest, package_debug_info};
+use crate::package::{
+    error_messages_size_hint,
+    loaded_mast_forest,
+    package_debug_info,
+    read_error_messages,
+    write_error_messages,
+};
 
 pub mod procedure;
 use procedure::{AccountProcedureRoot, PrintableProcedure};
@@ -317,6 +323,7 @@ impl Serializable for AccountCode {
         // number as a single byte - but we do have to subtract 1 to store 256 as 255.
         target.write_u8((self.procedures.len() - 1) as u8);
         target.write_many(self.procedures());
+        write_error_messages(self.package_debug_info.as_deref(), target);
     }
 
     fn get_size_hint(&self) -> usize {
@@ -332,7 +339,7 @@ impl Serializable for AccountCode {
             size += procedure.get_size_hint();
         }
 
-        size
+        size + error_messages_size_hint(self.package_debug_info.as_deref())
     }
 }
 
@@ -345,8 +352,11 @@ impl Deserializable for AccountCode {
             .read_many_iter(num_procedures)?
             .collect::<Result<Vec<AccountProcedureRoot>, _>>()?;
 
-        Self::from_parts(mast, procedures)
-            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
+        let mut code = Self::from_parts(mast, procedures)
+            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?;
+        code.package_debug_info = read_error_messages(source)?;
+
+        Ok(code)
     }
 }
 
@@ -503,10 +513,12 @@ fn procedures_as_elements(procedures: &[AccountProcedureRoot]) -> Vec<Felt> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
     use alloc::vec::Vec;
 
     use anyhow::Context;
     use assert_matches::assert_matches;
+    use miden_core::mast::error_code_from_msg;
     use rstest::rstest;
 
     use super::{AccountCode, ByteWriter, Deserializable, DeserializationError, Serializable};
@@ -563,6 +575,49 @@ mod tests {
         let code = AccountCode::from_components(&[NoopAuthComponent.into(), component]).unwrap();
 
         assert!(code.loaded_mast_forest().package_debug_info().unwrap().is_some());
+    }
+
+    #[test]
+    fn test_account_code_serialization_preserves_error_messages() {
+        const MESSAGE: &str = "custom component assertion";
+        let source = format!(
+            r#"
+            @account_procedure
+            pub proc foo
+                push.1 assert.err="{MESSAGE}"
+            end
+
+            @account_procedure
+            pub proc bar
+                push.1.2 add
+            end
+            "#
+        );
+
+        let package = assemble_test_package(
+            "test-account-code-error-messages",
+            "test::account_code",
+            &source,
+        );
+        let metadata = AccountComponentMetadata::new("test::error_messages");
+        let component = AccountComponent::new(package, vec![], metadata).unwrap();
+        let code = AccountCode::from_components(&[NoopAuthComponent.into(), component]).unwrap();
+
+        let err_code = error_code_from_msg(MESSAGE).as_canonical_u64();
+        let message_of = |code: &AccountCode| {
+            code.package_debug_info
+                .as_ref()
+                .and_then(|debug_info| debug_info.error_message(err_code))
+        };
+
+        assert_eq!(message_of(&code).as_deref(), Some(MESSAGE));
+
+        let serialized = code.to_bytes();
+        assert_eq!(serialized.len(), code.get_size_hint());
+
+        let deserialized = AccountCode::read_from_bytes(&serialized).unwrap();
+
+        assert_eq!(message_of(&deserialized).as_deref(), Some(MESSAGE));
     }
 
     #[test]

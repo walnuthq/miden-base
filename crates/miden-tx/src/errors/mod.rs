@@ -25,10 +25,6 @@ use miden_protocol::transaction::{TransactionEventId, TransactionSummary};
 use miden_protocol::{Felt, Word};
 use thiserror::Error;
 
-mod masm_error_message;
-
-pub(crate) use masm_error_message::resolve_masm_error_message;
-
 // NOTE EXECUTION ERROR
 // ================================================================================================
 

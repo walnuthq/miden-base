@@ -85,9 +85,9 @@ impl NoteRecipient {
     // MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Removes debug info associated with the script, if any.
-    pub fn clear_debug_info(&mut self) {
-        self.script.clear_debug_info();
+    /// Removes all debug info associated with the script except the assertion error messages.
+    pub fn retain_error_messages_only(&mut self) {
+        self.script.retain_error_messages_only();
     }
 
     /// Consumes self and returns the underlying parts of the [`NoteRecipient`].

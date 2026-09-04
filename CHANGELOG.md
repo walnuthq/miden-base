@@ -26,6 +26,7 @@
 - [BREAKING] Refactored `AccountVaultDelta` to track generic assets. `FungibleAssetDelta`, `NonFungibleAssetDelta` and `NonFungibleDeltaAction` were removed ([3485](https://github.com/0xMiden/protocol/pull/3485)).
 - [BREAKING] The transaction kernel no longer requires assets with `AssetComposition::None` to have the non-fungible asset layout ([#3624](https://github.com/0xMiden/protocol/pull/3624)).
 - [BREAKING] Refactored `Asset` into a struct holding `AssetId` and `AssetValue` ([#3625](https://github.com/0xMiden/protocol/pull/3625)).
+- [BREAKING] Renamed `clear_debug_info` on `Note`, `NoteDetails`, `NoteRecipient` and `NoteScript` to `retain_error_messages_only`, which now keeps the assertion error messages of the note script.
 
 ### Fixes
 
@@ -42,7 +43,7 @@
 - Faucet asset-callback procedure roots are now verified against the faucet's account code before dispatch, so a misconfigured callback root can no longer make an asset nontransferable ([#3612](https://github.com/0xMiden/protocol/pull/3612)).
 - [BREAKING] Enforced the limit of 1024 per asset delta op for added and removed account vault deltas inside and outside the tx kernel ([#3623](https://github.com/0xMiden/protocol/pull/3623)).
 - Fixed `AccountSchemaCommitment`'s `get_schema_commitment` returning above the 16-element stack depth ([#3645](https://github.com/0xMiden/protocol/pull/3645)).
-- Fixed failed assertions raised by deserialized account code or scripts being reported with only their error code instead of their error message.
+- [BREAKING] `AccountCode`, `NoteScript` and `TransactionScript` now persist the messages of their MASM assertions, so a failed assertion of deserialized code, including that of a user-defined component, is reported with its message instead of only its error code.
 
 ## v0.16.0 (2026-08-17)
 

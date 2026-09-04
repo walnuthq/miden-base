@@ -158,9 +158,9 @@ impl NoteScript {
         self.0.entrypoint()
     }
 
-    /// Removes debug info from this note script, if any.
-    pub fn clear_debug_info(&mut self) {
-        self.0.clear_debug_info();
+    /// Removes all debug info from this note script except the assertion error messages.
+    pub fn retain_error_messages_only(&mut self) {
+        self.0.retain_error_messages_only();
     }
 
     /// Returns a new [NoteScript] with the provided advice map entries merged into the
@@ -341,6 +341,49 @@ mod tests {
         let note_script = NoteScript::from_package(&package).unwrap();
 
         assert!(note_script.loaded_mast_forest().package_debug_info().unwrap().is_some());
+    }
+
+    #[test]
+    fn test_note_script_serialization_preserves_error_messages() {
+        use alloc::format;
+
+        use miden_core::mast::error_code_from_msg;
+
+        use crate::utils::serde::{Deserializable, Serializable};
+
+        const MESSAGE: &str = "custom note script assertion";
+        let source = format!(
+            r#"
+            @note_script
+            pub proc main
+                push.1 assert.err="{MESSAGE}"
+            end"#
+        );
+
+        let package = assemble_test_package(
+            "test-note-script-error-messages",
+            "test::note_error_messages",
+            &source,
+        );
+        let note_script = NoteScript::from_package(&package).unwrap();
+
+        let err_code = error_code_from_msg(MESSAGE).as_canonical_u64();
+        let message_of = |script: &NoteScript| {
+            script
+                .loaded_mast_forest()
+                .package_debug_info()
+                .unwrap()
+                .and_then(|debug_info| debug_info.error_message(err_code))
+        };
+
+        assert_eq!(message_of(&note_script).as_deref(), Some(MESSAGE));
+
+        let serialized = note_script.to_bytes();
+        assert_eq!(serialized.len(), note_script.get_size_hint());
+
+        let deserialized = NoteScript::read_from_bytes(&serialized).unwrap();
+
+        assert_eq!(message_of(&deserialized).as_deref(), Some(MESSAGE));
     }
 
     #[test]
